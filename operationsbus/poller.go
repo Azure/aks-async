@@ -3,8 +3,9 @@ package operationsbus
 import (
 	"context"
 
+	db "aks-async/database"
+
 	"github.com/Azure/aks-middleware/ctxlogger"
-	db "go.goms.io/aks/rp/mygreeterv3/server/internal/toolkit/database"
 )
 
 type Poller struct {
