@@ -13,7 +13,7 @@ type ReceiverInterface interface {
 }
 
 type Receiver struct {
-	sbusClient *azservicebus.Client
+	sbusClient *azservicebus.Client //TODO(mheberling): change to an interface so that they can change to use any service bus client not just azure.
 	ReceiverInterface
 }
 
@@ -51,7 +51,7 @@ func Start(ctx context.Context, r ReceiverInterface) {
 		}
 
 		// 3. Call run on the operation
-		operation.Run(ctx)
+		operation.Run(ctx) //TODO(mheberling): Make a channel and send it through here for errors
 		// return
 	}
 }
