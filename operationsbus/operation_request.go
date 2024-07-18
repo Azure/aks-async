@@ -16,4 +16,6 @@ type OperationRequest struct {
 
 	// HTTP
 	Body []byte
+
+	RetryCount int
 }
