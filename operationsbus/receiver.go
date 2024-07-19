@@ -2,8 +2,10 @@ package operationsbus
 
 import (
 	"context"
-	"errors"
+	"encoding/json"
 	"time"
+
+	sb "github.com/Azure/aks-async/servicebus"
 
 	"github.com/Azure/aks-middleware/ctxlogger"
 	"github.com/Azure/azure-sdk-for-go/sdk/messaging/azservicebus"
@@ -11,31 +13,31 @@ import (
 )
 
 // The receiver interface is what the user who is implementing their own async component (what actually receives and runs the operations) will need to implement, to do with their own definitions.
-type ReceiverInterface interface {
-	ReceiveOperation(context.Context) (APIOperation, error)
-}
+// type ReceiverInterface interface {
+// 	ReceiveOperation(context.Context) (APIOperation, error)
+// }
+//
+// type Receiver struct {
+// 	//TODO(mheberling): Change this to have a long lived connection to the receiver and sender as well.
+// 	sbusClient *azservicebus.Client //TODO(mheberling): change to an interface so that they can change to use any service bus client not just azure.
+// 	ReceiverInterface
+// }
 
-type Receiver struct {
-	//TODO(mheberling): Change this to have a long lived connection to the receiver and sender as well.
-	sbusClient *azservicebus.Client //TODO(mheberling): change to an interface so that they can change to use any service bus client not just azure.
-	ReceiverInterface
-}
+// func NewReceiver(sbusClient *azservicebus.Client) *Receiver {
+// 	receiver := &Receiver{
+// 		sbusClient: sbusClient,
+// 	}
+// 	return receiver
+// }
 
-func NewReceiver(sbusClient *azservicebus.Client) *Receiver {
-	receiver := &Receiver{
-		sbusClient: sbusClient,
-	}
-	return receiver
-}
-
-func CreateProcessor(receiver Receiver, busReceiver *azservicebus.Receiver) (*shuttle.Processor, error) {
+func CreateProcessor(serviceBusReceiver sb.ServiceBusReceiver, matcher *Matcher) (*shuttle.Processor, error) {
 	//TODO(mheberling): Think if we need to change these time variables.
 	lockRenewalInterval := 10 * time.Second
 	lockRenewalOptions := &shuttle.LockRenewalOptions{Interval: &lockRenewalInterval}
-	p := shuttle.NewProcessor(busReceiver,
+	p := shuttle.NewProcessor(serviceBusReceiver.Receiver,
 		shuttle.NewPanicHandler(nil,
 			shuttle.NewRenewLockHandler(lockRenewalOptions,
-				myHandler(receiver))),
+				myHandler(matcher))),
 		&shuttle.ProcessorOptions{
 			MaxConcurrency:  1,
 			StartMaxAttempt: 5,
@@ -45,27 +47,30 @@ func CreateProcessor(receiver Receiver, busReceiver *azservicebus.Receiver) (*sh
 	return p, nil
 }
 
-func myHandler(r ReceiverInterface) shuttle.HandlerFunc {
+// TODO(mheberling): is there a way to change this so that it doesn't rely only on azure service bus?
+func myHandler(matcher *Matcher) shuttle.HandlerFunc {
 	return func(ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage) {
 		logger := ctxlogger.GetLogger(ctx)
 
-		// 1. Receive the operation from the service bus
-		operation, err := r.ReceiveOperation(ctx)
+		// 1. Unmarshall the operatoin
+		var body OperationRequest
+		err := json.Unmarshal(message.Body, &body)
 		if err != nil {
 			logger.Error("Error calling ReceiveOperation: " + err.Error())
 			panic(err)
 		}
 
-		if operation == nil {
-			logger.Error("Something went wrong receiving operation")
-			err = errors.New("Operation is nil.")
+		// 2 Match it with the correct type of operation
+		operation, err := matcher.CreateInstance(body.OperationName)
+		if err != nil {
+			logger.Error("Operation type doesn't exist in the matcher: " + err.Error())
 			panic(err)
 		}
 
-		// 2. Init the operation
-		// call init() to the api operation
+		// 3. Init the operation with the information we have.
+		operation.Init(body)
 
-		// 3. Guard against concurrency.
+		// 4. Guard against concurrency.
 		ce, err := operation.Guardconcurrency()
 		if err != nil {
 			logger.Error("Error calling GuardConcurrency: " + err.Error())
@@ -78,10 +83,10 @@ func myHandler(r ReceiverInterface) shuttle.HandlerFunc {
 			panic(err)
 		}
 
-		// 4. Call run on the operation
+		// 5. Call run on the operation
 		operation.Run(ctx)
 
-		// 5. Finish the message
+		// 6. Finish the message
 		err = settler.CompleteMessage(ctx, message, nil)
 		if err != nil {
 			panic(err)
