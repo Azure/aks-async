@@ -5,7 +5,14 @@ import (
 )
 
 type ServiceBusClientInterface interface {
-	NewServiceBusClient(ctx context.Context, connectionString string, senderQueueName string, receiverQueueName string) (ServiceBusClientInterface, error)
-	SendMessage(ctx context.Context, message []byte) (interface{}, error) //TODO(mheberling): Here we can start returning the httpResponse with response code maybe?
-	ReceiveMessage(ctx context.Context, message []byte) (interface{}, error)
+	NewServiceBusReceiver(ctx context.Context, topicOrQueue string) (ReceiverInterface, error)
+	NewServiceBusSender(ctx context.Context, queue string) (SenderInterface, error)
+}
+
+type SenderInterface interface {
+	SendMessage(ctx context.Context, message []byte) error
+}
+
+type ReceiverInterface interface {
+	ReceiveMessage(ctx context.Context) ([]byte, error)
 }

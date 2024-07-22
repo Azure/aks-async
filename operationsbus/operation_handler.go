@@ -7,6 +7,9 @@ import (
 // OpInterface is the interface all operations will need to implement.
 type APIOperation interface {
 	Run(ctx context.Context) *Result
-	Guardconcurrency() (*CategorizedError, error)
-	EntityFetcher() *Entity
+	Retry(ctx context.Context) error
+	Guardconcurrency(*Entity) (*CategorizedError, error)
+	EntityFetcher() (*Entity, error)
+	Init(OperationRequest) (*APIOperation, error)
+	GetName() string
 }
