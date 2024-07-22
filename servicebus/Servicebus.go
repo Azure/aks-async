@@ -21,7 +21,7 @@ type ServiceBusSender struct {
 	Sender *azservicebus.Sender
 }
 
-func CreateServiceBusClient(ctx context.Context) (*ServiceBus, error) {
+func CreateServiceBusClient(ctx context.Context, clientUrl string) (*ServiceBus, error) {
 
 	logger := ctxlogger.GetLogger(ctx)
 	logger.Info("Creating Service Bus!")
@@ -32,7 +32,7 @@ func CreateServiceBusClient(ctx context.Context) (*ServiceBus, error) {
 		return nil, err
 	}
 
-	client, err := azservicebus.NewClient("heberling.servicebus.windows.net", tokenCredential, nil)
+	client, err := azservicebus.NewClient(clientUrl, tokenCredential, nil)
 	if err != nil {
 		logger.Error("Error getting client.")
 		return nil, err
