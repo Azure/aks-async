@@ -100,11 +100,11 @@ func (s *ServiceBusSender) SendMessage(ctx context.Context, message []byte) erro
 	logger := ctxlogger.GetLogger(ctx)
 	logger.Info("Sending message through service bus sender.")
 
-	fakeMessage := &azservicebus.Message{
+	packagedMessage := &azservicebus.Message{
 		Body: message,
 	}
 
-	err := s.Sender.SendMessage(ctx, fakeMessage, nil)
+	err := s.Sender.SendMessage(ctx, packagedMessage, nil)
 	if err != nil {
 		logger.Error("Error Sending message")
 		return err
