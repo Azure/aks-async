@@ -8,8 +8,8 @@ import (
 type APIOperation interface {
 	Run(ctx context.Context) *Result
 	Retry(ctx context.Context) error
-	Guardconcurrency() (*CategorizedError, error)
+	Guardconcurrency(Entity) (*CategorizedError, error)
 	EntityFetcher() *Entity
 	Init(OperationRequest) (*APIOperation, error)
-	//TODO(mheberling): Add factory operation which will figure out which operation we're running.
+	GetName() string
 }
