@@ -11,6 +11,5 @@ type APIOperation interface {
 	Guardconcurrency() (*CategorizedError, error)
 	EntityFetcher() *Entity
 	Init(OperationRequest) (*APIOperation, error)
-	GetString() string
 	//TODO(mheberling): Add factory operation which will figure out which operation we're running.
 }

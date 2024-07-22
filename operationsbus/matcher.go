@@ -17,10 +17,11 @@ func NewMatcher() *Matcher {
 
 // Set adds a key-value pair to the map
 // Ex: matcher.Register("LongRunning", &LongRunning{})
-func (m *Matcher) Set(key string, value APIOperation) {
+func (m *Matcher) Register(key string, value APIOperation) {
 	m.Types[key] = reflect.TypeOf(value).Elem()
 }
 
+// TODO(mheberling): do we need to delete this?
 // Get retrieves a value from the map by its key
 func (m *Matcher) Get(key string) (reflect.Type, bool) {
 	value, exists := m.Types[key]
