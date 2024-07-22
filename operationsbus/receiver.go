@@ -64,11 +64,13 @@ func myHandler(matcher *Matcher) shuttle.HandlerFunc {
 		if err != nil {
 			logger.Error("Error calling GuardConcurrency: " + err.Error())
 			logger.Error("Categorized Error calling GuardConcurrency: " + ce.Error())
-			panic(err)
-		}
-		err = operation.Retry(ctx)
-		if err != nil {
-			logger.Error("Error retrying: " + err.Error())
+
+			// Retry
+			retryErr := operation.Retry(ctx)
+			if retryErr != nil {
+				logger.Error("Error retrying: " + retryErr.Error())
+				panic(retryErr)
+			}
 			panic(err)
 		}
 
