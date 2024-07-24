@@ -10,35 +10,7 @@ import (
 	"github.com/microsoft/go-mssqldb/azuread"
 )
 
-func CreateDbClient(ctx context.Context) (*sql.DB, error) {
-
-	var (
-		server   = "heberling.database.windows.net"
-		port     = 1433
-		database = "hcp_servicehub"
-	)
-
-	// Build connection string
-	connString := fmt.Sprintf("server=%s;port%d;database=%s;fedauth=ActiveDirectoryDefault;", server, port, database) // Working because we're logged into azure.
-
-	db, err := sql.Open(azuread.DriverName, connString)
-	if err != nil {
-		log.Error("Error creating connection pool: " + err.Error())
-		return nil, err
-	}
-
-	// Pinging to check that we do have access.
-	err = db.PingContext(ctx)
-	if err != nil {
-		log.Error(err.Error())
-		return nil, err
-	} else {
-		log.Info("Connected!")
-	}
-
-	return db, nil
-}
-
+// TODO(mheberling): Make interfaces like service bus to use other types of db.
 func NewDbClient(ctx context.Context, server string, port int, database string) (*sql.DB, error) {
 	logger := ctxlogger.GetLogger(ctx)
 	logger.Info("Creating a db client.")

@@ -66,7 +66,7 @@ func (sb *ServiceBus) NewServiceBusReceiver(ctx context.Context, topicOrQueue st
 	logger := ctxlogger.GetLogger(ctx)
 	logger.Info("Creating new service bus receiver.")
 
-	receiver, err := sb.Client.NewReceiverForQueue("servicehub", nil)
+	receiver, err := sb.Client.NewReceiverForQueue(topicOrQueue, nil)
 	if err != nil {
 		logger.Error("Error getting receiver.")
 		return nil, err
@@ -83,7 +83,7 @@ func (sb *ServiceBus) NewServiceBusSender(ctx context.Context, queue string) (*S
 	logger := ctxlogger.GetLogger(ctx)
 	logger.Info("Creating new service bus sender.")
 
-	sender, err := sb.Client.NewSender("servicehub", nil)
+	sender, err := sb.Client.NewSender(queue, nil)
 	if err != nil {
 		logger.Error("Error getting the sender")
 		return nil, err
