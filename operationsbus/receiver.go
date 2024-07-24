@@ -3,6 +3,8 @@ package operationsbus
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"time"
 
 	sb "github.com/Azure/aks-async/servicebus"
@@ -40,6 +42,11 @@ func myHandler(matcher *Matcher) shuttle.HandlerFunc {
 		if err != nil {
 			logger.Error("Error calling ReceiveOperation: " + err.Error())
 			panic(err)
+		}
+
+		if body.RetryCount >= 10 {
+			logger.Error("Operation has passed the retry limit.")
+			panic(errors.New(fmt.Sprintf("Operation has retried %d times. The limit is 10.", body.RetryCount)))
 		}
 
 		// 2 Match it with the correct type of operation
