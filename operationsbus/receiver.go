@@ -60,13 +60,15 @@ func myHandler(matcher *Matcher) shuttle.HandlerFunc {
 		}
 
 		// 5. Guard against concurrency.
-		ce, err := operation.Guardconcurrency(ctx, entity)
+		ce, err := operation.Guardconcurrency(ctx, *entity)
 		if err != nil {
 			logger.Error("Error calling GuardConcurrency: " + err.Error())
 			logger.Error("Categorized Error calling GuardConcurrency: " + ce.Error())
 
 			// Retry
-			retryErr := operation.Retry(ctx)
+			operationRequest := operation.GetOperationRequest(ctx)
+			operationRequest.RetryCount++
+			retryErr := operation.Retry(ctx, *operationRequest)
 			if retryErr != nil {
 				logger.Error("Error retrying: " + retryErr.Error())
 				panic(retryErr)
