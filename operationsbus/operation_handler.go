@@ -8,8 +8,8 @@ import (
 type APIOperation interface {
 	Run(ctx context.Context) *Result
 	Retry(ctx context.Context) error
-	Guardconcurrency(*Entity) (*CategorizedError, error)
-	EntityFetcher() (*Entity, error)
-	Init(OperationRequest) (*APIOperation, error)
-	GetName() string
+	Guardconcurrency(context.Context, *Entity) (*CategorizedError, error)
+	EntityFetcher(context.Context) (*Entity, error)
+	Init(context.Context, OperationRequest) (*APIOperation, error) //TODO(mheberling): Missing ctx here? and in all functions.
+	GetName(context.Context) string
 }

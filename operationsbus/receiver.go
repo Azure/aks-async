@@ -29,8 +29,8 @@ func CreateProcessor(serviceBusReceiver sb.ServiceBusReceiver, matcher *Matcher)
 	return p, nil
 }
 
+// TODO(mheberling): is there a way to change this so that it doesn't rely only on azure service bus? Maybe try having a message type that has azservicebus.ReceivedMessage insinde and passing that here?
 func myHandler(matcher *Matcher) shuttle.HandlerFunc {
-	// TODO(mheberling): is there a way to change this so that it doesn't rely only on azure service bus? Maybe try having a message type that has azservicebus.ReceivedMessage insinde and passing that here?
 	return func(ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage) {
 		logger := ctxlogger.GetLogger(ctx)
 
@@ -50,17 +50,17 @@ func myHandler(matcher *Matcher) shuttle.HandlerFunc {
 		}
 
 		// 3. Init the operation with the information we have.
-		operation.Init(body)
+		operation.Init(ctx, body)
 
 		// 4. Get the entity.
-		entity, err := operation.EntityFetcher()
+		entity, err := operation.EntityFetcher(ctx)
 		if err != nil {
 			logger.Error("Entity was not able to be retrieved: " + err.Error())
 			panic(err)
 		}
 
 		// 5. Guard against concurrency.
-		ce, err := operation.Guardconcurrency(entity)
+		ce, err := operation.Guardconcurrency(ctx, entity)
 		if err != nil {
 			logger.Error("Error calling GuardConcurrency: " + err.Error())
 			logger.Error("Categorized Error calling GuardConcurrency: " + ce.Error())
