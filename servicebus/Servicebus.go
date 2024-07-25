@@ -28,7 +28,7 @@ func CreateServiceBusClient(ctx context.Context, clientUrl string) (*ServiceBus,
 
 	tokenCredential, err := azidentity.NewDefaultAzureCredential(nil)
 	if err != nil {
-		logger.Error("Error getting tokne credential")
+		logger.Error("Error getting token credential")
 		return nil, err
 	}
 
