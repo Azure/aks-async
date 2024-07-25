@@ -6,6 +6,8 @@ type OperationRequest struct {
 	APIVersion    string
 	RetryCount    int
 	OperationId   string
+	EntityId      string
+	EntityType    string
 
 	// HTTP
 	Body       []byte
