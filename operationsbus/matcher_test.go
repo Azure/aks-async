@@ -47,7 +47,7 @@ func (lr *LongRunning) Run(ctx context.Context) *Result {
 	return &Result{}
 }
 
-func (lr *LongRunning) Retry(ctx context.Context, operationRequest OperationRequest) error {
+func (lr *LongRunning) Retry(ctx context.Context) error {
 	fmt.Println("Retrying LongRunning operation")
 	return nil
 }
@@ -57,12 +57,12 @@ func (lr *LongRunning) Guardconcurrency(ctx context.Context, entity Entity) (*Ca
 	return &CategorizedError{}, nil
 }
 
-func (lr *LongRunning) EntityFetcher(ctx context.Context) (*Entity, error) {
+func (lr *LongRunning) EntityFetcher(ctx context.Context) (Entity, error) {
 	fmt.Println("Fetching entity in LongRunning operation")
 	return nil, nil
 }
 
-func (lr *LongRunning) Init(ctx context.Context, req OperationRequest) (*APIOperation, error) {
+func (lr *LongRunning) Init(ctx context.Context, req OperationRequest) (APIOperation, error) {
 	fmt.Println("Initializing LongRunning operation with request")
 	return nil, nil
 }
@@ -73,4 +73,8 @@ func (lr *LongRunning) GetName(ctx context.Context) string {
 
 func (lr *LongRunning) GetOperationRequest(ctx context.Context) *OperationRequest {
 	return &OperationRequest{}
+}
+
+func (lr *LongRunning) NewContextForOperation(ctx context.Context) (context.Context, error) {
+	return ctx, nil
 }

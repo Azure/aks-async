@@ -9,7 +9,7 @@ import (
 )
 
 type ServiceBus struct {
-	//TODO(mheberling): In the future, we can add more types of service bus here.
+	// In the future, we can add more types of service bus here.
 	Client *azservicebus.Client
 }
 
