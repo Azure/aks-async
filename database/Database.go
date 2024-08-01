@@ -11,6 +11,7 @@ import (
 )
 
 // TODO(mheberling): Make interfaces like service bus to use other types of db.
+// Create a database connection using the database name, server, and port. Must be logged in to azure cli.
 func NewDbClient(ctx context.Context, server string, port int, database string) (*sql.DB, error) {
 	logger := ctxlogger.GetLogger(ctx)
 	logger.Info("Creating a db client.")
@@ -36,6 +37,7 @@ func NewDbClient(ctx context.Context, server string, port int, database string) 
 	return db, nil
 }
 
+// Create a dabatase connection using a connection string.
 func NewDbClientWithConnectionString(ctx context.Context, connectionstring string) (*sql.DB, error) {
 	logger := ctxlogger.GetLogger(ctx)
 	logger.Info("Creating a db client.")
@@ -59,6 +61,7 @@ func NewDbClientWithConnectionString(ctx context.Context, connectionstring strin
 }
 
 // TODO(mheberling): Change this to return something more digestible than sql.Rows?
+// Query the database, appropriate for "SELECT" methods.
 func QueryDb(ctx context.Context, db *sql.DB, query string) (*sql.Rows, error) {
 	logger := ctxlogger.GetLogger(ctx)
 	logger.Info("Querying db.")
@@ -69,4 +72,17 @@ func QueryDb(ctx context.Context, db *sql.DB, query string) (*sql.Rows, error) {
 	}
 
 	return rows, nil
+}
+
+// Execute a query for "INSERT", "UPDATE", or "DELETE" methods which affect rows.
+func ExecDb(ctx context.Context, db *sql.DB, query string) (sql.Result, error) {
+	logger := ctxlogger.GetLogger(ctx)
+	logger.Info("Querying db.")
+	result, err := db.ExecContext(ctx, query)
+	if err != nil {
+		log.Info("Error executing query: " + query + ". With error: " + err.Error())
+		return nil, err
+	}
+
+	return result, nil
 }

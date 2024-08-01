@@ -14,9 +14,9 @@ import (
 	"github.com/Azure/go-shuttle/v2"
 )
 
-func CreateProcessor(serviceBusReceiver sb.ServiceBusReceiver, matcher *Matcher) (*shuttle.Processor, error) {
+func CreateProcessor(serviceBusReceiver sb.ServiceBusReceiver, matcher *Matcher, operationController OperationController) (*shuttle.Processor, error) {
 	panicOptions := &shuttle.PanicHandlerOptions{
-		OnPanicRecovered: basicPanicRecovery,
+		OnPanicRecovered: basicPanicRecovery(operationController),
 	}
 
 	//TODO(mheberling): Think if we need to change these time variables.
@@ -26,7 +26,7 @@ func CreateProcessor(serviceBusReceiver sb.ServiceBusReceiver, matcher *Matcher)
 	p := shuttle.NewProcessor(serviceBusReceiver.Receiver,
 		shuttle.NewPanicHandler(panicOptions,
 			shuttle.NewRenewLockHandler(lockRenewalOptions,
-				myHandler(matcher))),
+				myHandler(matcher, operationController))),
 		&shuttle.ProcessorOptions{
 			MaxConcurrency:  1,
 			StartMaxAttempt: 5,
@@ -37,7 +37,7 @@ func CreateProcessor(serviceBusReceiver sb.ServiceBusReceiver, matcher *Matcher)
 }
 
 // TODO(mheberling): is there a way to change this so that it doesn't rely only on azure service bus? Maybe try having a message type that has azservicebus.ReceivedMessage insinde and passing that here?
-func myHandler(matcher *Matcher) shuttle.HandlerFunc {
+func myHandler(matcher *Matcher, operationController OperationController) shuttle.HandlerFunc {
 	return func(ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage) {
 		logger := ctxlogger.GetLogger(ctx)
 
@@ -61,17 +61,25 @@ func myHandler(matcher *Matcher) shuttle.HandlerFunc {
 			panic(err)
 		}
 
-		// 3. Init the operation with the information we have.
-		operation.Init(ctx, body)
-
 		panicOptions := &shuttle.PanicHandlerOptions{
-			OnPanicRecovered: operationPanicRecovery(operation),
+			OnPanicRecovered: operationPanicRecovery(operation, operationController),
 		}
 
-		// We add a different panic handler here because we only want to retry the operation if: 1. We are able to unmarshall the message,
-		// 2. The retry limit has not been exceeded, 3. We were able to instantiate the operation. These 3 things will not change by
+		// We add a different panic handler here because we only want to retry the operation if: we are able to unmarshall the message,
+		// the retry limit has not been exceeded, and wee were able to instantiate the operation. These 3 things will not change by
 		// returning the message to the queue so we don't want to retry.
 		handler := shuttle.NewPanicHandler(panicOptions, shuttle.HandlerFunc(func(ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage) {
+
+			// Set the operation as in progress.
+			operationController.OperationInProgress(ctx, body.OperationId)
+
+			// 3. Init the operation with the information we have.
+			_, err = operation.Init(ctx, body)
+			if err != nil {
+				logger.Error("Something went wrong initializing the operation.")
+				panic(err)
+			}
+
 			// 4. Get the entity.
 			entity, err := operation.EntityFetcher(ctx)
 			if err != nil {
@@ -96,6 +104,9 @@ func myHandler(matcher *Matcher) shuttle.HandlerFunc {
 
 			// 7. Finish the message
 			settleMessage(ctx, settler, message, nil)
+			// Set operation as FINISHED
+			operationController.OperationCompleted(ctx, operation.GetOperationRequest(ctx).OperationId)
+
 			logger.Info("Operation run successfully!")
 		}))
 
@@ -103,29 +114,43 @@ func myHandler(matcher *Matcher) shuttle.HandlerFunc {
 	}
 }
 
-func basicPanicRecovery(ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage, recovered any) {
-	logger := ctxlogger.GetLogger(ctx)
-	logger.Info("Recovering from panic before getting operation.")
+func basicPanicRecovery(operationController OperationController) func(ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage, recovered any) {
+	return func(ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage, recovered any) {
+		logger := ctxlogger.GetLogger(ctx)
+		logger.Info("Recovering from panic before getting operation.")
 
-	// Settle message
-	settleMessage(ctx, settler, message, nil)
+		var body OperationRequest
+		err := json.Unmarshal(message.Body, &body)
+		if err != nil {
+			logger.Error("Error calling ReceiveOperation: " + err.Error())
+			panic(err)
+		}
+
+		// Settle message
+		settleMessage(ctx, settler, message, nil)
+
+		// Cancel the operation
+		operationController.OperationCancel(ctx, body.OperationId)
+	}
 }
 
-func operationPanicRecovery(operation APIOperation) func(ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage, recovered any) {
+// TODO(mheberling): Will probably have to add reason for cancellation here as well.
+func operationPanicRecovery(operation APIOperation, operationController OperationController) func(ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage, recovered any) {
 	return func(ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage, recovered any) {
 		logger := ctxlogger.GetLogger(ctx)
 		logger.Info("Recovering from panic after getting operation.")
 
 		// Retry the message
-		operationRequest := operation.GetOperationRequest(ctx)
-		operationRequest.RetryCount++
-		err := operation.Retry(ctx, *operationRequest)
+		err := operation.Retry(ctx)
 		if err != nil {
 			logger.Error("Error retrying: " + err.Error())
 		}
 
 		// Settle message
 		settleMessage(ctx, settler, message, nil)
+
+		// Set the operation as Pending
+		operationController.OperationPending(ctx, operation.GetOperationRequest(ctx).OperationId)
 	}
 }
 
