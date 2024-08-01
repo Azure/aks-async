@@ -70,7 +70,8 @@ func myHandler(matcher *Matcher, operationController OperationController) shuttl
 		// returning the message to the queue so we don't want to retry.
 		handler := shuttle.NewPanicHandler(panicOptions, shuttle.HandlerFunc(func(ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage) {
 
-			// Set operation as IN_PROGRESS
+			// Set the operation as in progress.
+			operationController.OperationInProgress(ctx, body.OperationId)
 
 			// 3. Init the operation with the information we have.
 			_, err = operation.Init(ctx, body)
@@ -94,7 +95,6 @@ func myHandler(matcher *Matcher, operationController OperationController) shuttl
 				panic(err)
 			}
 
-			//TODO(mheberling): Run this in a go func and check for expiration date constantly?
 			// 6. Call run on the operation
 			result := operation.Run(ctx)
 			if result.Error != nil {

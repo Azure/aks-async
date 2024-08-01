@@ -8,7 +8,7 @@ In the future these libraries would be exposed and put on github or an external 
 
 ### Database
 
-A simple wrapper thhat will allow you to connect and query a database easier.
+A simple wrapper that will allow you to connect and query a database easier.
 
 ### OperationsBus
 
@@ -16,4 +16,4 @@ The interfaces that will allow you to create your own operations and run them on
 
 ### Service Bus
 
-A simple wrapper thhat will allow you to connect and query a service bus easier.
+A simple wrapper that will allow you to connect and query a service bus easier.
