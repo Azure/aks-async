@@ -13,5 +13,4 @@ type APIOperation interface {
 	Init(context.Context, OperationRequest) (APIOperation, error)
 	GetName(context.Context) string
 	GetOperationRequest(context.Context) *OperationRequest
-	NewContextForOperation(context.Context) (context.Context, error)
 }
