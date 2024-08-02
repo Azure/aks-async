@@ -10,5 +10,5 @@ type OperationController interface {
 	OperationTimeout(context.Context, string) error
 	OperationCompleted(context.Context, string) error
 	OperationPending(context.Context, string) error
-	OperationUnkown(context.Context, string) error
+	OperationUnknown(context.Context, string) error
 }
