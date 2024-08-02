@@ -141,7 +141,7 @@ func operationPanicRecovery(operation APIOperation, operationController Operatio
 		logger.Info("Recovering from panic after getting operation.")
 
 		// Retry the message
-		err := operation.Retry(ctx)
+		err := operation.GetOperationRequest(ctx).Retry(ctx)
 		if err != nil {
 			logger.Error("Error retrying: " + err.Error())
 		}
