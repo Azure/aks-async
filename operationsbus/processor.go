@@ -131,7 +131,7 @@ func basicPanicRecovery(operationController OperationController) func(ctx contex
 		err := json.Unmarshal(message.Body, &body)
 		if err != nil {
 			logger.Error("Error calling ReceiveOperation: " + err.Error())
-			panic(err)
+			return
 		}
 
 		// Settle message
