@@ -71,7 +71,11 @@ func myHandler(matcher *Matcher, operationController OperationController) shuttl
 		handler := shuttle.NewPanicHandler(panicOptions, shuttle.HandlerFunc(func(ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage) {
 
 			// Set the operation as in progress.
-			operationController.OperationInProgress(ctx, body.OperationId)
+			err = operationController.OperationInProgress(ctx, body.OperationId)
+			if err != nil {
+				logger.Error("Something went wrong setting operation In Progress.")
+				panic(err)
+			}
 
 			// 3. Init the operation with the information we have.
 			_, err = operation.Init(ctx, body)
@@ -101,11 +105,15 @@ func myHandler(matcher *Matcher, operationController OperationController) shuttl
 				logger.Error("Something went wrong running the operation: " + result.Error.Error())
 				panic(result.Error)
 			}
+			// Set operation as FINISHED
+			err = operationController.OperationCompleted(ctx, operation.GetOperationRequest(ctx).OperationId)
+			if err != nil {
+				logger.Error("Something went wrong setting the operation as Completed.")
+				panic(err)
+			}
 
 			// 7. Finish the message
 			settleMessage(ctx, settler, message, nil)
-			// Set operation as FINISHED
-			operationController.OperationCompleted(ctx, operation.GetOperationRequest(ctx).OperationId)
 
 			logger.Info("Operation run successfully!")
 		}))
@@ -130,7 +138,10 @@ func basicPanicRecovery(operationController OperationController) func(ctx contex
 		settleMessage(ctx, settler, message, nil)
 
 		// Cancel the operation
-		operationController.OperationCancel(ctx, body.OperationId)
+		err = operationController.OperationCancel(ctx, body.OperationId)
+		if err != nil {
+			logger.Error("Something went wrong setting the operation as Cancelled.")
+		}
 	}
 }
 
@@ -150,7 +161,10 @@ func operationPanicRecovery(operation APIOperation, operationController Operatio
 		settleMessage(ctx, settler, message, nil)
 
 		// Set the operation as Pending
-		operationController.OperationPending(ctx, operation.GetOperationRequest(ctx).OperationId)
+		err = operationController.OperationPending(ctx, operation.GetOperationRequest(ctx).OperationId)
+		if err != nil {
+			logger.Error("Something went wrong setting the operation as Pending.")
+		}
 	}
 }
 
