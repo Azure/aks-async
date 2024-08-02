@@ -30,31 +30,9 @@ type OperationRequest struct {
 	HttpMethod string
 }
 
-func (opRequest *OperationRequest) Retry(ctx context.Context) error {
+func (opRequest *OperationRequest) Retry(ctx context.Context, sender sb.ServiceBusSender) error {
 	logger := ctxlogger.GetLogger(ctx)
 	logger.Info("Retrying the long running operation.")
-
-	var servicebusClient *sb.ServiceBus
-	var err error
-	if opRequest.ServiceBusConnectionString != "" {
-		servicebusClient, err = sb.CreateServiceBusClientFromConnectionString(ctx, opRequest.ServiceBusConnectionString)
-		if err != nil {
-			logger.Error("Something went wrong creating the service bus client: " + err.Error())
-			return err
-		}
-	} else {
-		servicebusClient, err = sb.CreateServiceBusClient(ctx, opRequest.ServiceBusClientUrl)
-		if err != nil {
-			logger.Error("Something went wrong creating the service bus client: " + err.Error())
-			return err
-		}
-	}
-
-	sender, err := servicebusClient.NewServiceBusSender(ctx, opRequest.ServiceBusSenderQueue)
-	if err != nil {
-		logger.Error("Something went wrong creating the service bus sender: " + err.Error())
-		return err
-	}
 
 	opRequest.RetryCount++
 	logger.Info(fmt.Sprintf("Current retry: %d", opRequest.RetryCount))
