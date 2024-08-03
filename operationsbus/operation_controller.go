@@ -11,4 +11,5 @@ type OperationController interface {
 	OperationCompleted(context.Context, string) error
 	OperationPending(context.Context, string) error
 	OperationUnknown(context.Context, string) error
+	OperationGetEntity(context.Context, OperationRequest) (Entity, error)
 }

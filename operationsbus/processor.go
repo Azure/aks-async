@@ -85,7 +85,7 @@ func myHandler(matcher *Matcher, operationController OperationController, sender
 			}
 
 			// 4. Get the entity.
-			entity, err := operation.EntityFetcher(ctx)
+			entity, err := operationController.OperationGetEntity(ctx, body)
 			if err != nil {
 				logger.Error("Entity was not able to be retrieved: " + err.Error())
 				panic(err)
