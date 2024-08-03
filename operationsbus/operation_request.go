@@ -28,6 +28,7 @@ type OperationRequest struct {
 func (opRequest *OperationRequest) Retry(ctx context.Context, sender sb.ServiceBusSender) error {
 	logger := ctxlogger.GetLogger(ctx)
 	logger.Info("Retrying the long running operation.")
+	logger.Info(fmt.Sprintf("Struct: %+v", opRequest))
 
 	opRequest.RetryCount++
 	logger.Info(fmt.Sprintf("Current retry: %d", opRequest.RetryCount))
