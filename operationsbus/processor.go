@@ -62,7 +62,7 @@ func myHandler(matcher *Matcher, operationController OperationController, sender
 		}
 
 		panicOptions := &shuttle.PanicHandlerOptions{
-			OnPanicRecovered: operationPanicRecovery(operation, operationController, sender),
+			OnPanicRecovered: operationPanicRecovery(operationController, sender),
 		}
 
 		// We add a different panic handler here because we only want to retry the operation if: we are able to unmarshall the message,
@@ -146,13 +146,19 @@ func basicPanicRecovery(operationController OperationController) func(ctx contex
 }
 
 // TODO(mheberling): Will probably have to add reason for cancellation here as well.
-func operationPanicRecovery(operation APIOperation, operationController OperationController, sender sb.ServiceBusSender) func(ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage, recovered any) {
+func operationPanicRecovery(operationController OperationController, sender sb.ServiceBusSender) func(ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage, recovered any) {
 	return func(ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage, recovered any) {
 		logger := ctxlogger.GetLogger(ctx)
 		logger.Info("Recovering from panic after getting operation.")
 
+		var body OperationRequest
+		err := json.Unmarshal(message.Body, &body)
+		if err != nil {
+			logger.Error("Error calling ReceiveOperation: " + err.Error())
+			return
+		}
 		// Retry the message
-		err := operation.GetOperationRequest(ctx).Retry(ctx, sender)
+		err = body.Retry(ctx, sender)
 		if err != nil {
 			logger.Error("Error retrying: " + err.Error())
 		}
@@ -161,7 +167,7 @@ func operationPanicRecovery(operation APIOperation, operationController Operatio
 		settleMessage(ctx, settler, message, nil)
 
 		// Set the operation as Pending
-		err = operationController.OperationPending(ctx, operation.GetOperationRequest(ctx).OperationId)
+		err = operationController.OperationPending(ctx, body.OperationId)
 		if err != nil {
 			logger.Error("Something went wrong setting the operation as Pending.")
 		}
