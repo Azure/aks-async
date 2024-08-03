@@ -32,7 +32,7 @@ func (m *Matcher) Get(key string) (reflect.Type, bool) {
 func (m *Matcher) CreateInstance(key string) (APIOperation, error) {
 	t, exists := m.Types[key]
 	if !exists {
-		return nil, errors.New("The APIOperation doesn't exist in the map!")
+		return nil, errors.New("The APIOperation doesn't exist in the map: " + key)
 	}
 
 	instance := reflect.New(t).Interface().(APIOperation)

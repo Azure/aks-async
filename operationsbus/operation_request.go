@@ -20,11 +20,6 @@ type OperationRequest struct {
 	EntityType     string
 	ExpirationDate *timestamppb.Timestamp
 
-	// Service bus for retry
-	ServiceBusConnectionString string
-	ServiceBusClientUrl        string
-	ServiceBusSenderQueue      string
-
 	// HTTP
 	Body       []byte
 	HttpMethod string
