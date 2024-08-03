@@ -52,11 +52,6 @@ func (lr *LongRunning) Guardconcurrency(ctx context.Context, entity Entity) (*Ca
 	return &CategorizedError{}, nil
 }
 
-func (lr *LongRunning) EntityFetcher(ctx context.Context) (Entity, error) {
-	fmt.Println("Fetching entity in LongRunning operation")
-	return nil, nil
-}
-
 func (lr *LongRunning) Init(ctx context.Context, req OperationRequest) (APIOperation, error) {
 	fmt.Println("Initializing LongRunning operation with request")
 	return nil, nil
