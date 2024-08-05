@@ -1,5 +1,6 @@
 package operationsbus
 
+// All the status types that should be supported.
 const (
 	Unknown     string = "Unknown"
 	Pending            = "Pending"

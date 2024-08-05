@@ -25,6 +25,7 @@ type OperationRequest struct {
 	HttpMethod string
 }
 
+// Generalized method to retry every operation. If the operation failed or hit an error at any stage, this method will be called after the panic is handled.
 func (opRequest *OperationRequest) Retry(ctx context.Context, sender sb.ServiceBusSender) error {
 	logger := ctxlogger.GetLogger(ctx)
 	logger.Info("Retrying the long running operation.")
