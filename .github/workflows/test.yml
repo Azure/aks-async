@@ -1,0 +1,25 @@
+name: Run Unit Tests
+
+on: [pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        go-version: [1.22.x]
+    steps:
+    ## sets up go based on the version
+    - name: Install Go
+      uses: actions/setup-go@v2
+      with:
+        go-version: ${{ matrix.go-version }}
+
+    ## checks out our code locally so we can work with the files
+    - name: Checkout code
+      uses: actions/checkout@v2
+    
+    ## runs go test ./...
+    - name: Test
+      run: go test ./...
