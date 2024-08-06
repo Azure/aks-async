@@ -4,6 +4,7 @@ import (
 	"context"
 )
 
+// Operationcontroller is the interface that handles updating the database with the correct operation state.
 type OperationController interface {
 	OperationCancel(context.Context, string) error
 	OperationInProgress(context.Context, string) error

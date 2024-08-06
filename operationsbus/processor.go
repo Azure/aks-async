@@ -14,6 +14,7 @@ import (
 	"github.com/Azure/go-shuttle/v2"
 )
 
+// The processor will be utilized to "process" all the operations by receiving the message, guarding against concurrency, running the operation, and updating the right database status.
 func CreateProcessor(sender sb.ServiceBusSender, serviceBusReceiver sb.ServiceBusReceiver, matcher *Matcher, operationController OperationController) (*shuttle.Processor, error) {
 	panicOptions := &shuttle.PanicHandlerOptions{
 		OnPanicRecovered: basicPanicRecovery(operationController),

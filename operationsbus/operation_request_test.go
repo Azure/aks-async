@@ -7,7 +7,7 @@ import (
 
 func TestOperationRequestMarshall(t *testing.T) {
 	operation := &OperationRequest{
-		OperationName: "LongRunningOperation", //TODO(mheberling): Probably will have to pass this in as well.
+		OperationName: "LongRunningOperation",
 		APIVersion:    "",
 		OperationId:   "0",
 		Body:          nil,

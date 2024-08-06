@@ -5,6 +5,7 @@ import (
 	"reflect"
 )
 
+// The matcher is utilized in order to keep track of the name and type of each operation. This is required because we only send the OperationRequest through the service bus, but we utilize the name shown in that struct in order to create an instance of the right operation type (e.g. LongRunning) and Run with the correct logic.
 type Matcher struct {
 	Types map[string]reflect.Type
 }
