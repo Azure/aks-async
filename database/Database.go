@@ -3,6 +3,7 @@ package database
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	log "log/slog"
 
@@ -81,6 +82,14 @@ func ExecDb(ctx context.Context, db *sql.DB, query string) (sql.Result, error) {
 	result, err := db.ExecContext(ctx, query)
 	if err != nil {
 		log.Info("Error executing query: " + query + ". With error: " + err.Error())
+		return nil, err
+	}
+
+	if rows, err := result.RowsAffected(); rows == 0 {
+		log.Error("No rows were affected!")
+		return nil, errors.New("No rows were affected!")
+	} else if err != nil {
+		log.Error("Error checking the number of affected rows.")
 		return nil, err
 	}
 
