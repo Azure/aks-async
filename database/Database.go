@@ -63,10 +63,10 @@ func NewDbClientWithConnectionString(ctx context.Context, connectionstring strin
 
 // TODO(mheberling): Change this to return something more digestible than sql.Rows?
 // Query the database, appropriate for "SELECT" methods.
-func QueryDb(ctx context.Context, db *sql.DB, query string) (*sql.Rows, error) {
+func QueryDb(ctx context.Context, db *sql.DB, query string, args ...interface{}) (*sql.Rows, error) {
 	logger := ctxlogger.GetLogger(ctx)
 	logger.Info("Querying db.")
-	rows, err := db.QueryContext(ctx, query)
+	rows, err := db.QueryContext(ctx, query, args...)
 	if err != nil {
 		log.Info("Error executing query: " + query + ". With error: " + err.Error())
 		return nil, err
@@ -76,10 +76,10 @@ func QueryDb(ctx context.Context, db *sql.DB, query string) (*sql.Rows, error) {
 }
 
 // Execute a query for "INSERT", "UPDATE", or "DELETE" methods which affect rows.
-func ExecDb(ctx context.Context, db *sql.DB, query string) (sql.Result, error) {
+func ExecDb(ctx context.Context, db *sql.DB, query string, args ...interface{}) (sql.Result, error) {
 	logger := ctxlogger.GetLogger(ctx)
 	logger.Info("Querying db.")
-	result, err := db.ExecContext(ctx, query)
+	result, err := db.ExecContext(ctx, query, args...)
 	if err != nil {
 		log.Info("Error executing query: " + query + ". With error: " + err.Error())
 		return nil, err
