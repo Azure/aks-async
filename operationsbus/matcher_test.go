@@ -17,15 +17,15 @@ func TestMatcher(t *testing.T) {
 	operation := "LongRunning"
 	matcher.Register(operation, &LongRunning{})
 
-	result, exists := matcher.Get(operation)
+	retrieved, exists := matcher.Get(operation)
 	if !exists {
 		t.Fatalf("Operation %s should exist in the matcher, instead got: %t", operation, exists)
 	}
 
 	longRunningOp := &LongRunning{}
 	longRunningOpType := reflect.TypeOf(longRunningOp).Elem()
-	if result != longRunningOpType {
-		t.Fatalf("Expected %s. Instead got: %s", longRunningOpType, result)
+	if retrieved != longRunningOpType {
+		t.Fatalf("Expected %s. Instead got: %s", longRunningOpType, retrieved)
 	}
 
 	// Retrieve an instance of the type associated with the key operation
@@ -39,12 +39,21 @@ func TestMatcher(t *testing.T) {
 	if reflect.TypeOf(instance).Elem() != longRunningOpType {
 		t.Fatalf("The created instance is not of the correct type")
 	}
+
+	result := instance.Run(context.TODO())
+	if result.HTTPCode != 200 {
+		t.Fatalf("Result did not equal 200.")
+	}
 }
 
 // Example implementation of APIOperation for LongRunning
 func (lr *LongRunning) Run(ctx context.Context) *Result {
 	fmt.Println("Running LongRunning operation")
-	return &Result{}
+	return &Result{
+		HTTPCode: 200,
+		Message:  "OK",
+		Error:    nil,
+	}
 }
 
 func (lr *LongRunning) Guardconcurrency(ctx context.Context, entity Entity) (*CategorizedError, error) {

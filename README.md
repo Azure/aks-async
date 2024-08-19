@@ -142,6 +142,35 @@ func (lre *LongRunningEntity) GetLatestOperationID() string {
 }
 ```
 
+Additionally, if there are fields that you need to Init your operation, but they don't currently exist in the OperationRequest, you can use the `Extension` variable to add any interface you need together with the `SetExtension(interface{})` method in order to use that interface as a more concrete type and directly change the OperationRequest.Extension variable, so you can continue using the same instance.
+```go
+type Sample struct {
+	Message string
+	Num     int
+}
+
+var body OperationRequest
+err := json.Unmarshal(marshalledOperation, &body)
+if err != nil {
+    t.Fatalf("Could not unmarshall operation request:" + err.Error())
+}
+
+// SetExtension(interface{}) uses the type of a parameter that is passed in to instantiate the Extension into the correct type you need.
+s := &Sample{}
+err = body.SetExtension(s)
+if err != nil {
+    t.Fatalf("SetExtension errored: " + err.Error())
+}
+
+// Check if the type and value are correctly set
+if ext, ok := body.Extension.(*Sample); ok {
+    fmt.Println(ext.Message)
+    fmt.Println(ext.Num)
+} else {
+    fmt.Println("Extension is not of type *Sample")
+}
+```
+
 ### Service Bus
 
 A simple wrapper that will allow you to connect and receive messages from a service bus client.
@@ -154,19 +183,9 @@ if err != nil {
     fmt.Println("Something went wrong creating the service bus sender: " + err.Error())
 }
 
-expirationTime := time.Now().Add(1 * time.Hour)
-protoExpirationTime := timestamppb.New(expirationTime)
-operation := &operationsbus.OperationRequest{
-    OperationName:  "LongRunningOperation", 
-    APIVersion:     "v0.0.1",
-    OperationId:    "1",
-    Body:           nil,
-    HttpMethod:     "",
-    RetryCount:     0,
-    EntityId:       "1",
-    EntityType:     "Cluster",
-    ExpirationDate: expirationTime,
-}
+expirationTime := timestamppb.New(time.Now().Add(1 * time.Hour))
+extension := "Hello!"
+operation := operationsbus.NewOperationRequest("LongRunningOperation", "v0.0.1", "1", "1", "Cluster", 0, expirationTime, nil, "", extension) 
 
 marshalledOperation, err := json.Marshal(operation)
 if err != nil {
