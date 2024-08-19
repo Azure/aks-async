@@ -17,9 +17,9 @@ if err != nil {
     logger.Error("Error creating connection pool: " + err.Error())
 }
 
-
-query := fmt.Sprintf("SELECT LastName FROM family WHERE FirstName = '%s';", firstName)
-rows, err := database.QueryDb(ctx, dbClient, query)
+// The query is parametrized for you.
+query := "SELECT LastName FROM family WHERE FirstName = ?"
+rows, err := database.QueryDb(ctx, dbClient, query, firstName)
 if err != nil {
     fmt.Println("Error checking if the previous operation of the entity is finished: " + err.Error())
 }
