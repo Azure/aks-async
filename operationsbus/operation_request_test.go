@@ -14,7 +14,6 @@ type Sample struct {
 }
 
 func TestOperationRequestMarshall(t *testing.T) {
-	// matcher := NewMatcher()
 
 	expirationTime := timestamppb.New(time.Now().Add(1 * time.Hour))
 	extension := &Sample{

@@ -66,14 +66,6 @@ func (lr *LongRunning) Init(ctx context.Context, req OperationRequest) (APIOpera
 	return nil, nil
 }
 
-func (lr *LongRunning) GetName(ctx context.Context) string {
-	return "LongRunning"
-}
-
 func (lr *LongRunning) GetOperationRequest(ctx context.Context) *OperationRequest {
 	return &OperationRequest{}
-}
-
-func (lr *LongRunning) NewContextForOperation(ctx context.Context) (context.Context, error) {
-	return ctx, nil
 }
