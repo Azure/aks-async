@@ -15,19 +15,52 @@ import (
 )
 
 // The processor will be utilized to "process" all the operations by receiving the message, guarding against concurrency, running the operation, and updating the right database status.
-func CreateProcessor(sender sb.ServiceBusSender, serviceBusReceiver sb.ServiceBusReceiver, matcher *Matcher, operationController OperationController) (*shuttle.Processor, error) {
-	panicOptions := &shuttle.PanicHandlerOptions{
-		OnPanicRecovered: basicPanicRecovery(operationController),
+func CreateProcessor(
+	sender sb.ServiceBusSender,
+	serviceBusReceiver sb.ServiceBusReceiver,
+	matcher *Matcher,
+	operationController OperationController,
+	customHandler shuttle.HandlerFunc,
+	processorOptions *shuttle.ProcessorOptions,
+) (*shuttle.Processor, error) {
+
+	// Define the default handler chain
+	defaultHandler := func() shuttle.HandlerFunc {
+		// Default panic handler
+		panicOptions := &shuttle.PanicHandlerOptions{
+			OnPanicRecovered: basicPanicRecovery(operationController),
+		}
+
+		// Lock renewal settings
+		lockRenewalInterval := 10 * time.Second
+		lockRenewalOptions := &shuttle.LockRenewalOptions{Interval: &lockRenewalInterval}
+
+		// Combine handlers into a single default handler
+		return shuttle.NewPanicHandler(
+			panicOptions,
+			shuttle.NewRenewLockHandler(
+				lockRenewalOptions,
+				myHandler(matcher, operationController, sender),
+			),
+		)
+	}()
+
+	// Use the default handler if a custom handler is not provided
+	if customHandler == nil {
+		customHandler = defaultHandler
 	}
 
-	//TODO(mheberling): Think if we need to change these time variables.
-	lockRenewalInterval := 10 * time.Second
-	lockRenewalOptions := &shuttle.LockRenewalOptions{Interval: &lockRenewalInterval}
+	if processorOptions == nil {
+		processorOptions = &shuttle.ProcessorOptions{
+			MaxConcurrency:  1,
+			StartMaxAttempt: 5,
+		}
+	}
 
-	p := shuttle.NewProcessor(serviceBusReceiver.Receiver,
-		shuttle.NewPanicHandler(panicOptions,
-			shuttle.NewRenewLockHandler(lockRenewalOptions,
-				myHandler(matcher, operationController, sender))),
+	// Create the processor using the (potentially custom) handler
+	p := shuttle.NewProcessor(
+		serviceBusReceiver.Receiver,
+		customHandler,
 		&shuttle.ProcessorOptions{
 			MaxConcurrency:  1,
 			StartMaxAttempt: 5,
@@ -146,7 +179,6 @@ func basicPanicRecovery(operationController OperationController) func(ctx contex
 	}
 }
 
-// TODO(mheberling): Will probably have to add reason for cancellation here as well.
 func operationPanicRecovery(operationController OperationController, sender sb.ServiceBusSender) func(ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage, recovered any) {
 	return func(ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage, recovered any) {
 		logger := ctxlogger.GetLogger(ctx)
