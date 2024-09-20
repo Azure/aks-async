@@ -39,3 +39,16 @@ func (m *Matcher) CreateInstance(key string) (APIOperation, error) {
 	instance := reflect.New(t).Interface().(APIOperation)
 	return instance, nil
 }
+
+func (m *Matcher) CreateHookedInstace(key string, hooks []BaseOperationHooksInterface) (*HookedApiOperation, error) {
+	operation, err := m.CreateInstance(key)
+	if err != nil {
+		return nil, err
+	}
+
+	hOperation := &HookedApiOperation{
+		Operation:      &operation,
+		OperationHooks: hooks,
+	}
+	return hOperation, nil
+}

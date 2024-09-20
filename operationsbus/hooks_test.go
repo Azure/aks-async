@@ -7,17 +7,27 @@ import (
 	"testing"
 )
 
+const (
+	value = 1
+)
+
 // Sample hook
 type RunOnlyHooks struct {
 	HookedApiOperation
 }
 
-func (h *RunOnlyHooks) BeforeRun(ctx context.Context, op APIOperation) {
-	fmt.Println("This is the before internal hook!")
+func (h *RunOnlyHooks) BeforeRun(ctx context.Context, op *APIOperation) {
+	fmt.Println("This is the before internal run hook!")
+	if longOp, ok := (*op).(*LongRunningOperation); ok {
+		longOp.num += 1
+	}
 }
 
-func (h *RunOnlyHooks) AfterRun(ctx context.Context, op APIOperation, result Result) {
-	fmt.Println("This is the after internal hook!")
+func (h *RunOnlyHooks) AfterRun(ctx context.Context, op *APIOperation, result Result) {
+	fmt.Println("This is the after internal run hook!")
+	if longOp, ok := (*op).(*LongRunningOperation); ok {
+		longOp.num += 1
+	}
 }
 
 // Sample operation
@@ -29,7 +39,6 @@ type LongRunningOperation struct {
 }
 
 func (l *LongRunningOperation) Run(context.Context) *Result {
-	fmt.Println(l.num)
 	return &Result{}
 }
 
@@ -39,7 +48,7 @@ func (l *LongRunningOperation) GuardConcurrency(context.Context, Entity) (*Categ
 
 func (l *LongRunningOperation) Init(ctx context.Context, opReq OperationRequest) (APIOperation, error) {
 	l.opReq = opReq
-	l.num = 1
+	l.num = value
 	return nil, nil
 }
 
@@ -68,15 +77,17 @@ func TestHooks(t *testing.T) {
 		t.Fatalf("Error unmarshalling operation: " + err.Error())
 	}
 
+	// Testing with a regular instance
 	operation, err := matcher.CreateInstance(body.OperationName)
 	if err != nil {
 		t.Fatalf("Error creating instance of operation: " + err.Error())
 	}
 
 	runOnlyHooks := &RunOnlyHooks{}
+	hooksSlice := []BaseOperationHooksInterface{runOnlyHooks}
 	hOperation := &HookedApiOperation{
-		Operation:      operation,
-		OperationHooks: []BaseOperationHooksInterface{runOnlyHooks},
+		Operation:      &operation,
+		OperationHooks: hooksSlice,
 	}
 
 	_, err = hOperation.Init(ctx, body)
@@ -86,6 +97,41 @@ func TestHooks(t *testing.T) {
 
 	_, err = hOperation.GuardConcurrency(ctx, nil)
 	_ = hOperation.Run(ctx)
+	if longOp, ok := (*hOperation.Operation).(*LongRunningOperation); ok {
+		if longOp.num == 3 {
+			t.Log("Hooks did ran successfully.")
+		} else {
+			t.Fatalf("Hooks did not run successfully.")
+		}
+	} else {
+		t.Fatalf("Something went wrong casting the operation to LongRunningOperation type.")
+	}
 
-	fmt.Println("Finished!")
+	err = json.Unmarshal(marshalledOperation, &body)
+	if err != nil {
+		t.Fatalf("Error unmarshalling operation: " + err.Error())
+	}
+
+	// Testing with a Hooked Instace
+	hOperation, err = matcher.CreateHookedInstace(body.OperationName, hooksSlice)
+	if err != nil {
+		t.Fatalf("Error creating instance of operation: " + err.Error())
+	}
+
+	_, err = hOperation.Init(ctx, body)
+	if err != nil {
+		t.Fatalf("Error initializing operation: " + err.Error())
+	}
+
+	_, err = hOperation.GuardConcurrency(ctx, nil)
+	_ = hOperation.Run(ctx)
+	if longOp, ok := (*hOperation.Operation).(*LongRunningOperation); ok {
+		if longOp.num == 3 {
+			t.Log("Hooks did ran successfully.")
+		} else {
+			t.Fatalf("Hooks did not run successfully.")
+		}
+	} else {
+		t.Fatalf("Something went wrong casting the operation to LongRunningOperation type.")
+	}
 }

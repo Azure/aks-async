@@ -22,6 +22,7 @@ func CreateProcessor(
 	operationController OperationController,
 	customHandler shuttle.HandlerFunc,
 	processorOptions *shuttle.ProcessorOptions,
+	hooks ...BaseOperationHooksInterface,
 ) (*shuttle.Processor, error) {
 
 	// Define the default handler chain
@@ -40,7 +41,7 @@ func CreateProcessor(
 			panicOptions,
 			shuttle.NewRenewLockHandler(
 				lockRenewalOptions,
-				myHandler(matcher, operationController, sender),
+				myHandler(matcher, operationController, sender, hooks),
 			),
 		)
 	}()
@@ -71,7 +72,7 @@ func CreateProcessor(
 }
 
 // TODO(mheberling): is there a way to change this so that it doesn't rely only on azure service bus? Maybe try having a message type that has azservicebus.ReceivedMessage insinde and passing that here?
-func myHandler(matcher *Matcher, operationController OperationController, sender sb.ServiceBusSender) shuttle.HandlerFunc {
+func myHandler(matcher *Matcher, operationController OperationController, sender sb.ServiceBusSender, hooks []BaseOperationHooksInterface) shuttle.HandlerFunc {
 	return func(ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage) {
 		logger := ctxlogger.GetLogger(ctx)
 
@@ -89,7 +90,7 @@ func myHandler(matcher *Matcher, operationController OperationController, sender
 		}
 
 		// 2 Match it with the correct type of operation
-		operation, err := matcher.CreateInstance(body.OperationName)
+		operation, err := matcher.CreateHookedInstace(body.OperationName, hooks)
 		if err != nil {
 			logger.Error("Operation type doesn't exist in the matcher: " + err.Error())
 			panic(err)
@@ -140,7 +141,7 @@ func myHandler(matcher *Matcher, operationController OperationController, sender
 				panic(result.Error)
 			}
 			// Set operation as FINISHED
-			err = operationController.OperationCompleted(ctx, operation.GetOperationRequest(ctx).OperationId)
+			err = operationController.OperationCompleted(ctx, body.OperationId)
 			if err != nil {
 				logger.Error("Something went wrong setting the operation as Completed.")
 				panic(err)
