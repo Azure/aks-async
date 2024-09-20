@@ -7,23 +7,19 @@ import (
 	"testing"
 )
 
-const (
-	value = 1
-)
-
 // Sample hook
 type RunOnlyHooks struct {
 	HookedApiOperation
 }
 
-func (h *RunOnlyHooks) BeforeRun(ctx context.Context, op *APIOperation) {
+func (h *RunOnlyHooks) BeforeRun(ctx context.Context, op *ApiOperation) {
 	fmt.Println("This is the before internal run hook!")
 	if longOp, ok := (*op).(*LongRunningOperation); ok {
 		longOp.num += 1
 	}
 }
 
-func (h *RunOnlyHooks) AfterRun(ctx context.Context, op *APIOperation, result Result) {
+func (h *RunOnlyHooks) AfterRun(ctx context.Context, op *ApiOperation, err error) {
 	fmt.Println("This is the after internal run hook!")
 	if longOp, ok := (*op).(*LongRunningOperation); ok {
 		longOp.num += 1
@@ -31,24 +27,24 @@ func (h *RunOnlyHooks) AfterRun(ctx context.Context, op *APIOperation, result Re
 }
 
 // Sample operation
-var _ APIOperation = &LongRunningOperation{}
+var _ ApiOperation = &LongRunningOperation{}
 
 type LongRunningOperation struct {
 	opReq OperationRequest
 	num   int
 }
 
-func (l *LongRunningOperation) Run(context.Context) *Result {
-	return &Result{}
+func (l *LongRunningOperation) Run(context.Context) error {
+	return nil
 }
 
 func (l *LongRunningOperation) GuardConcurrency(context.Context, Entity) (*CategorizedError, error) {
 	return nil, nil
 }
 
-func (l *LongRunningOperation) Init(ctx context.Context, opReq OperationRequest) (APIOperation, error) {
+func (l *LongRunningOperation) Init(ctx context.Context, opReq OperationRequest) (ApiOperation, error) {
 	l.opReq = opReq
-	l.num = value
+	l.num = 1
 	return nil, nil
 }
 

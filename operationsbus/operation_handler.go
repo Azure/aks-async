@@ -4,9 +4,9 @@ import (
 	"context"
 )
 
-// APIOperation is the interface all operations will need to implement.
-type APIOperation interface {
-	Init(context.Context, OperationRequest) (APIOperation, error)
+// ApiOperation is the interface all operations will need to implement.
+type ApiOperation interface {
+	Init(context.Context, OperationRequest) (ApiOperation, error)
 	GuardConcurrency(context.Context, Entity) (*CategorizedError, error)
-	Run(context.Context) *Result
+	Run(context.Context) error
 }

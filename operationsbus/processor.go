@@ -135,11 +135,12 @@ func myHandler(matcher *Matcher, operationController OperationController, sender
 			}
 
 			// 6. Call run on the operation
-			result := operation.Run(ctx)
-			if result.Error != nil {
-				logger.Error("Something went wrong running the operation: " + result.Error.Error())
-				panic(result.Error)
+			err = operation.Run(ctx)
+			if err != nil {
+				logger.Error("Something went wrong running the operation: " + err.Error())
+				panic(err)
 			}
+
 			// Set operation as FINISHED
 			err = operationController.OperationCompleted(ctx, body.OperationId)
 			if err != nil {

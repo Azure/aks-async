@@ -6,39 +6,39 @@ import (
 
 type BaseOperationHooksInterface interface {
 	BeforeInit(ctx context.Context, req OperationRequest)
-	AfterInit(ctx context.Context, op *APIOperation, req OperationRequest, err error)
+	AfterInit(ctx context.Context, op *ApiOperation, req OperationRequest, err error)
 
-	BeforeGuardConcurrency(ctx context.Context, op *APIOperation, entity Entity)
-	AfterGuardConcurrency(ctx context.Context, op *APIOperation, ce *CategorizedError, err error)
+	BeforeGuardConcurrency(ctx context.Context, op *ApiOperation, entity Entity)
+	AfterGuardConcurrency(ctx context.Context, op *ApiOperation, ce *CategorizedError, err error)
 
-	BeforeRun(ctx context.Context, op *APIOperation)
-	AfterRun(ctx context.Context, op *APIOperation, result Result)
+	BeforeRun(ctx context.Context, op *ApiOperation)
+	AfterRun(ctx context.Context, op *ApiOperation, err error)
 }
 
 var _ BaseOperationHooksInterface = &HookedApiOperation{}
 
 type HookedApiOperation struct {
-	Operation      *APIOperation
+	Operation      *ApiOperation
 	OperationHooks []BaseOperationHooksInterface
 }
 
 func (h *HookedApiOperation) BeforeInit(ctx context.Context, req OperationRequest) {
 }
-func (h *HookedApiOperation) AfterInit(ctx context.Context, op *APIOperation, req OperationRequest, err error) {
+func (h *HookedApiOperation) AfterInit(ctx context.Context, op *ApiOperation, req OperationRequest, err error) {
 }
-func (h *HookedApiOperation) BeforeGuardConcurrency(ctx context.Context, op *APIOperation, entity Entity) {
+func (h *HookedApiOperation) BeforeGuardConcurrency(ctx context.Context, op *ApiOperation, entity Entity) {
 }
-func (h *HookedApiOperation) AfterGuardConcurrency(ctx context.Context, op *APIOperation, ce *CategorizedError, err error) {
+func (h *HookedApiOperation) AfterGuardConcurrency(ctx context.Context, op *ApiOperation, ce *CategorizedError, err error) {
 }
-func (h *HookedApiOperation) BeforeRun(ctx context.Context, op *APIOperation) {}
-func (h *HookedApiOperation) AfterRun(ctx context.Context, op *APIOperation, result Result) {
+func (h *HookedApiOperation) BeforeRun(ctx context.Context, op *ApiOperation) {}
+func (h *HookedApiOperation) AfterRun(ctx context.Context, op *ApiOperation, err error) {
 }
 
 // type HookedApiOperation struct {
-//   apiOperation APIOperation
+//   apiOperation ApiOperation
 // }
 
-func (h *HookedApiOperation) Init(ctx context.Context, opReq OperationRequest) (APIOperation, error) {
+func (h *HookedApiOperation) Init(ctx context.Context, opReq OperationRequest) (ApiOperation, error) {
 	for _, hook := range h.OperationHooks {
 		hook.BeforeInit(ctx, opReq)
 	}
@@ -66,16 +66,16 @@ func (h *HookedApiOperation) GuardConcurrency(ctx context.Context, entity Entity
 	return ce, err
 }
 
-func (h *HookedApiOperation) Run(ctx context.Context) *Result {
+func (h *HookedApiOperation) Run(ctx context.Context) error {
 	for _, hook := range h.OperationHooks {
 		hook.BeforeRun(ctx, h.Operation)
 	}
 
-	result := (*h.Operation).Run(ctx)
+	err := (*h.Operation).Run(ctx)
 
 	for _, hook := range h.OperationHooks {
-		hook.AfterRun(ctx, h.Operation, *result)
+		hook.AfterRun(ctx, h.Operation, err)
 	}
 
-	return result
+	return err
 }
