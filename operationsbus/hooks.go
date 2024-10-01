@@ -34,10 +34,6 @@ func (h *HookedApiOperation) BeforeRun(ctx context.Context, op *ApiOperation) {}
 func (h *HookedApiOperation) AfterRun(ctx context.Context, op *ApiOperation, err error) {
 }
 
-// type HookedApiOperation struct {
-//   apiOperation ApiOperation
-// }
-
 func (h *HookedApiOperation) Init(ctx context.Context, opReq OperationRequest) (ApiOperation, error) {
 	for _, hook := range h.OperationHooks {
 		hook.BeforeInit(ctx, opReq)

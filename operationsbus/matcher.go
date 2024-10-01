@@ -46,9 +46,14 @@ func (m *Matcher) CreateHookedInstace(key string, hooks []BaseOperationHooksInte
 		return nil, err
 	}
 
+	if hooks == nil {
+		hooks = []BaseOperationHooksInterface{}
+	}
+
 	hOperation := &HookedApiOperation{
 		Operation:      &operation,
 		OperationHooks: hooks,
 	}
+
 	return hOperation, nil
 }

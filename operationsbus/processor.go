@@ -22,7 +22,7 @@ func CreateProcessor(
 	operationController OperationController,
 	customHandler shuttle.HandlerFunc,
 	processorOptions *shuttle.ProcessorOptions,
-	hooks ...BaseOperationHooksInterface,
+	hooks []BaseOperationHooksInterface,
 ) (*shuttle.Processor, error) {
 
 	// Define the default handler chain
