@@ -15,19 +15,53 @@ import (
 )
 
 // The processor will be utilized to "process" all the operations by receiving the message, guarding against concurrency, running the operation, and updating the right database status.
-func CreateProcessor(sender sb.ServiceBusSender, serviceBusReceiver sb.ServiceBusReceiver, matcher *Matcher, operationController OperationController) (*shuttle.Processor, error) {
-	panicOptions := &shuttle.PanicHandlerOptions{
-		OnPanicRecovered: basicPanicRecovery(operationController),
+func CreateProcessor(
+	sender sb.ServiceBusSender,
+	serviceBusReceiver sb.ServiceBusReceiver,
+	matcher *Matcher,
+	operationController OperationController,
+	customHandler shuttle.HandlerFunc,
+	processorOptions *shuttle.ProcessorOptions,
+	hooks []BaseOperationHooksInterface,
+) (*shuttle.Processor, error) {
+
+	// Define the default handler chain
+	defaultHandler := func() shuttle.HandlerFunc {
+		// Default panic handler
+		panicOptions := &shuttle.PanicHandlerOptions{
+			OnPanicRecovered: basicPanicRecovery(operationController),
+		}
+
+		// Lock renewal settings
+		lockRenewalInterval := 10 * time.Second
+		lockRenewalOptions := &shuttle.LockRenewalOptions{Interval: &lockRenewalInterval}
+
+		// Combine handlers into a single default handler
+		return shuttle.NewPanicHandler(
+			panicOptions,
+			shuttle.NewRenewLockHandler(
+				lockRenewalOptions,
+				myHandler(matcher, operationController, sender, hooks),
+			),
+		)
+	}()
+
+	// Use the default handler if a custom handler is not provided
+	if customHandler == nil {
+		customHandler = defaultHandler
 	}
 
-	//TODO(mheberling): Think if we need to change these time variables.
-	lockRenewalInterval := 10 * time.Second
-	lockRenewalOptions := &shuttle.LockRenewalOptions{Interval: &lockRenewalInterval}
+	if processorOptions == nil {
+		processorOptions = &shuttle.ProcessorOptions{
+			MaxConcurrency:  1,
+			StartMaxAttempt: 5,
+		}
+	}
 
-	p := shuttle.NewProcessor(serviceBusReceiver.Receiver,
-		shuttle.NewPanicHandler(panicOptions,
-			shuttle.NewRenewLockHandler(lockRenewalOptions,
-				myHandler(matcher, operationController, sender))),
+	// Create the processor using the (potentially custom) handler
+	p := shuttle.NewProcessor(
+		serviceBusReceiver.Receiver,
+		customHandler,
 		&shuttle.ProcessorOptions{
 			MaxConcurrency:  1,
 			StartMaxAttempt: 5,
@@ -38,7 +72,7 @@ func CreateProcessor(sender sb.ServiceBusSender, serviceBusReceiver sb.ServiceBu
 }
 
 // TODO(mheberling): is there a way to change this so that it doesn't rely only on azure service bus? Maybe try having a message type that has azservicebus.ReceivedMessage insinde and passing that here?
-func myHandler(matcher *Matcher, operationController OperationController, sender sb.ServiceBusSender) shuttle.HandlerFunc {
+func myHandler(matcher *Matcher, operationController OperationController, sender sb.ServiceBusSender, hooks []BaseOperationHooksInterface) shuttle.HandlerFunc {
 	return func(ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage) {
 		logger := ctxlogger.GetLogger(ctx)
 
@@ -56,7 +90,7 @@ func myHandler(matcher *Matcher, operationController OperationController, sender
 		}
 
 		// 2 Match it with the correct type of operation
-		operation, err := matcher.CreateInstance(body.OperationName)
+		operation, err := matcher.CreateHookedInstace(body.OperationName, hooks)
 		if err != nil {
 			logger.Error("Operation type doesn't exist in the matcher: " + err.Error())
 			panic(err)
@@ -93,7 +127,7 @@ func myHandler(matcher *Matcher, operationController OperationController, sender
 			}
 
 			// 5. Guard against concurrency.
-			ce, err := operation.Guardconcurrency(ctx, entity)
+			ce, err := operation.GuardConcurrency(ctx, entity)
 			if err != nil {
 				logger.Error("Error calling GuardConcurrency: " + err.Error())
 				logger.Error("Categorized Error calling GuardConcurrency: " + ce.Error())
@@ -101,13 +135,14 @@ func myHandler(matcher *Matcher, operationController OperationController, sender
 			}
 
 			// 6. Call run on the operation
-			result := operation.Run(ctx)
-			if result.Error != nil {
-				logger.Error("Something went wrong running the operation: " + result.Error.Error())
-				panic(result.Error)
+			err = operation.Run(ctx)
+			if err != nil {
+				logger.Error("Something went wrong running the operation: " + err.Error())
+				panic(err)
 			}
+
 			// Set operation as FINISHED
-			err = operationController.OperationCompleted(ctx, operation.GetOperationRequest(ctx).OperationId)
+			err = operationController.OperationCompleted(ctx, body.OperationId)
 			if err != nil {
 				logger.Error("Something went wrong setting the operation as Completed.")
 				panic(err)
@@ -146,7 +181,6 @@ func basicPanicRecovery(operationController OperationController) func(ctx contex
 	}
 }
 
-// TODO(mheberling): Will probably have to add reason for cancellation here as well.
 func operationPanicRecovery(operationController OperationController, sender sb.ServiceBusSender) func(ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage, recovered any) {
 	return func(ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage, recovered any) {
 		logger := ctxlogger.GetLogger(ctx)

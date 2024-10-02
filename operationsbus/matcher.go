@@ -18,7 +18,7 @@ func NewMatcher() *Matcher {
 
 // Set adds a key-value pair to the map
 // Ex: matcher.Register("LongRunning", &LongRunning{})
-func (m *Matcher) Register(key string, value APIOperation) {
+func (m *Matcher) Register(key string, value ApiOperation) {
 	m.Types[key] = reflect.TypeOf(value).Elem()
 }
 
@@ -30,12 +30,30 @@ func (m *Matcher) Get(key string) (reflect.Type, bool) {
 }
 
 // This will create an empty instance of the type, with which you can then call op.Init() and initialize any info you need.
-func (m *Matcher) CreateInstance(key string) (APIOperation, error) {
+func (m *Matcher) CreateInstance(key string) (ApiOperation, error) {
 	t, exists := m.Types[key]
 	if !exists {
-		return nil, errors.New("The APIOperation doesn't exist in the map: " + key)
+		return nil, errors.New("The ApiOperation doesn't exist in the map: " + key)
 	}
 
-	instance := reflect.New(t).Interface().(APIOperation)
+	instance := reflect.New(t).Interface().(ApiOperation)
 	return instance, nil
+}
+
+func (m *Matcher) CreateHookedInstace(key string, hooks []BaseOperationHooksInterface) (*HookedApiOperation, error) {
+	operation, err := m.CreateInstance(key)
+	if err != nil {
+		return nil, err
+	}
+
+	if hooks == nil {
+		hooks = []BaseOperationHooksInterface{}
+	}
+
+	hOperation := &HookedApiOperation{
+		Operation:      &operation,
+		OperationHooks: hooks,
+	}
+
+	return hOperation, nil
 }

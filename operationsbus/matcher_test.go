@@ -7,9 +7,11 @@ import (
 	"testing"
 )
 
-type LongRunning struct{}
+type LongRunning struct {
+	num int
+}
 
-var _ APIOperation = (*LongRunning)(nil)
+var _ ApiOperation = (*LongRunning)(nil)
 
 func TestMatcher(t *testing.T) {
 	matcher := NewMatcher()
@@ -40,40 +42,32 @@ func TestMatcher(t *testing.T) {
 		t.Fatalf("The created instance is not of the correct type")
 	}
 
-	result := instance.Run(context.TODO())
-	if result.HTTPCode != 200 {
-		t.Fatalf("Result did not equal 200.")
+	ctx := context.Background()
+	_, _ = instance.Init(ctx, OperationRequest{})
+	_ = instance.Run(ctx)
+	if longOp, ok := instance.(*LongRunning); ok {
+		if longOp.num != 2 {
+			t.Fatalf("Run did not complete successfully: %d", longOp.num)
+		}
+	} else {
+		t.Fatalf("Something went wrong casting the operation to LongRunning type.")
 	}
 }
 
-// Example implementation of APIOperation for LongRunning
-func (lr *LongRunning) Run(ctx context.Context) *Result {
+// Example implementation of ApiOperation for LongRunning
+func (lr *LongRunning) Run(ctx context.Context) error {
 	fmt.Println("Running LongRunning operation")
-	return &Result{
-		HTTPCode: 200,
-		Message:  "OK",
-		Error:    nil,
-	}
+	lr.num += 1
+	return nil
 }
 
-func (lr *LongRunning) Guardconcurrency(ctx context.Context, entity Entity) (*CategorizedError, error) {
+func (lr *LongRunning) GuardConcurrency(ctx context.Context, entity Entity) (*CategorizedError, error) {
 	fmt.Println("Guarding concurrency in LongRunning operation")
 	return &CategorizedError{}, nil
 }
 
-func (lr *LongRunning) Init(ctx context.Context, req OperationRequest) (APIOperation, error) {
+func (lr *LongRunning) Init(ctx context.Context, req OperationRequest) (ApiOperation, error) {
 	fmt.Println("Initializing LongRunning operation with request")
+	lr.num = 1
 	return nil, nil
-}
-
-func (lr *LongRunning) GetName(ctx context.Context) string {
-	return "LongRunning"
-}
-
-func (lr *LongRunning) GetOperationRequest(ctx context.Context) *OperationRequest {
-	return &OperationRequest{}
-}
-
-func (lr *LongRunning) NewContextForOperation(ctx context.Context) (context.Context, error) {
-	return ctx, nil
 }
