@@ -38,8 +38,8 @@ func (l *LongRunningOperation) Run(context.Context) error {
 	return nil
 }
 
-func (l *LongRunningOperation) GuardConcurrency(context.Context, Entity) (*CategorizedError, error) {
-	return nil, nil
+func (l *LongRunningOperation) GuardConcurrency(context.Context, Entity) *CategorizedError {
+	return nil
 }
 
 func (l *LongRunningOperation) Init(ctx context.Context, opReq OperationRequest) (ApiOperation, error) {
@@ -91,7 +91,7 @@ func TestHooks(t *testing.T) {
 		t.Fatalf("Error initializing operation: " + err.Error())
 	}
 
-	_, err = hOperation.GuardConcurrency(ctx, nil)
+	_ = hOperation.GuardConcurrency(ctx, nil)
 	_ = hOperation.Run(ctx)
 	if longOp, ok := (*hOperation.Operation).(*LongRunningOperation); ok {
 		if longOp.num == 3 {
@@ -119,7 +119,7 @@ func TestHooks(t *testing.T) {
 		t.Fatalf("Error initializing operation: " + err.Error())
 	}
 
-	_, err = hOperation.GuardConcurrency(ctx, nil)
+	_ = hOperation.GuardConcurrency(ctx, nil)
 	_ = hOperation.Run(ctx)
 	if longOp, ok := (*hOperation.Operation).(*LongRunningOperation); ok {
 		if longOp.num == 3 {

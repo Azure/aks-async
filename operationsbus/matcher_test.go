@@ -61,7 +61,7 @@ func (lr *LongRunning) Run(ctx context.Context) error {
 	return nil
 }
 
-func (lr *LongRunning) Guardconcurrency(ctx context.Context, entity Entity) *CategorizedError {
+func (lr *LongRunning) GuardConcurrency(ctx context.Context, entity Entity) *CategorizedError {
 	fmt.Println("Guarding concurrency in LongRunning operation")
 	return &CategorizedError{}
 }
