@@ -9,7 +9,7 @@ type BaseOperationHooksInterface interface {
 	AfterInit(ctx context.Context, op *ApiOperation, req OperationRequest, err error)
 
 	BeforeGuardConcurrency(ctx context.Context, op *ApiOperation, entity Entity)
-	AfterGuardConcurrency(ctx context.Context, op *ApiOperation, ce *CategorizedError, err error)
+	AfterGuardConcurrency(ctx context.Context, op *ApiOperation, ce *CategorizedError)
 
 	BeforeRun(ctx context.Context, op *ApiOperation)
 	AfterRun(ctx context.Context, op *ApiOperation, err error)
@@ -28,7 +28,7 @@ func (h *HookedApiOperation) AfterInit(ctx context.Context, op *ApiOperation, re
 }
 func (h *HookedApiOperation) BeforeGuardConcurrency(ctx context.Context, op *ApiOperation, entity Entity) {
 }
-func (h *HookedApiOperation) AfterGuardConcurrency(ctx context.Context, op *ApiOperation, ce *CategorizedError, err error) {
+func (h *HookedApiOperation) AfterGuardConcurrency(ctx context.Context, op *ApiOperation, ce *CategorizedError) {
 }
 func (h *HookedApiOperation) BeforeRun(ctx context.Context, op *ApiOperation) {}
 func (h *HookedApiOperation) AfterRun(ctx context.Context, op *ApiOperation, err error) {
@@ -48,18 +48,18 @@ func (h *HookedApiOperation) Init(ctx context.Context, opReq OperationRequest) (
 	return operation, err
 }
 
-func (h *HookedApiOperation) GuardConcurrency(ctx context.Context, entity Entity) (*CategorizedError, error) {
+func (h *HookedApiOperation) GuardConcurrency(ctx context.Context, entity Entity) *CategorizedError {
 	for _, hook := range h.OperationHooks {
 		hook.BeforeGuardConcurrency(ctx, h.Operation, entity)
 	}
 
-	ce, err := (*h.Operation).GuardConcurrency(ctx, entity)
+	ce := (*h.Operation).GuardConcurrency(ctx, entity)
 
 	for _, hook := range h.OperationHooks {
-		hook.AfterGuardConcurrency(ctx, h.Operation, ce, err)
+		hook.AfterGuardConcurrency(ctx, h.Operation, ce)
 	}
 
-	return ce, err
+	return ce
 }
 
 func (h *HookedApiOperation) Run(ctx context.Context) error {

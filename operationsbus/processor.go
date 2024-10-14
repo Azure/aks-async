@@ -127,11 +127,10 @@ func myHandler(matcher *Matcher, operationController OperationController, sender
 			}
 
 			// 5. Guard against concurrency.
-			ce, err := operation.GuardConcurrency(ctx, entity)
+			ce := operation.GuardConcurrency(ctx, entity)
 			if err != nil {
-				logger.Error("Error calling GuardConcurrency: " + err.Error())
-				logger.Error("Categorized Error calling GuardConcurrency: " + ce.Error())
-				panic(err)
+				logger.Error("Error calling GuardConcurrency: " + ce.Err.Error())
+				panic(ce.Err)
 			}
 
 			// 6. Call run on the operation
