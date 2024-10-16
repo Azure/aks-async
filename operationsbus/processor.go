@@ -71,7 +71,7 @@ func CreateProcessor(
 	return p, nil
 }
 
-// TODO(mheberling): is there a way to change this so that it doesn't rely only on azure service bus? Maybe try having a message type that has azservicebus.ReceivedMessage insinde and passing that here?
+// TODO(mheberling): is there a way to change this so that it doesn't rely only on azure service bus? Maybe try having a message type that has azservicebus.ReceivedMessage inside and passing that here?
 func myHandler(matcher *Matcher, operationController OperationController, sender sb.ServiceBusSender, hooks []BaseOperationHooksInterface) shuttle.HandlerFunc {
 	return func(ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage) {
 		logger := ctxlogger.GetLogger(ctx)

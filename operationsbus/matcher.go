@@ -22,7 +22,6 @@ func (m *Matcher) Register(key string, value ApiOperation) {
 	m.Types[key] = reflect.TypeOf(value).Elem()
 }
 
-// TODO(mheberling): do we need to delete this?
 // Get retrieves a value from the map by its key
 func (m *Matcher) Get(key string) (reflect.Type, bool) {
 	value, exists := m.Types[key]
