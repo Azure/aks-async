@@ -43,7 +43,7 @@ func TestMatcher(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	_, _ = instance.Init(ctx, OperationRequest{})
+	_, _ = instance.InitOperation(ctx, OperationRequest{})
 	_ = instance.Run(ctx)
 	if longOp, ok := instance.(*LongRunning); ok {
 		if longOp.num != 2 {
@@ -66,7 +66,7 @@ func (lr *LongRunning) GuardConcurrency(ctx context.Context, entity Entity) *Cat
 	return &CategorizedError{}
 }
 
-func (lr *LongRunning) Init(ctx context.Context, req OperationRequest) (ApiOperation, error) {
+func (lr *LongRunning) InitOperation(ctx context.Context, req OperationRequest) (ApiOperation, error) {
 	fmt.Println("Initializing LongRunning operation with request")
 	lr.num = 1
 	return nil, nil
