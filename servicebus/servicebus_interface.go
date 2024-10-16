@@ -2,11 +2,13 @@ package servicebus
 
 import (
 	"context"
+
+	"github.com/Azure/azure-sdk-for-go/sdk/messaging/azservicebus"
 )
 
 type ServiceBusClientInterface interface {
-	NewServiceBusReceiver(ctx context.Context, topicOrQueue string) (ReceiverInterface, error)
-	NewServiceBusSender(ctx context.Context, queue string) (SenderInterface, error)
+	NewServiceBusReceiver(ctx context.Context, topicOrQueue string, options *azservicebus.ReceiverOptions) (ReceiverInterface, error)
+	NewServiceBusSender(ctx context.Context, queue string, options *azservicebus.NewSenderOptions) (SenderInterface, error)
 }
 
 type SenderInterface interface {

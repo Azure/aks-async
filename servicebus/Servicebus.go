@@ -22,7 +22,7 @@ type ServiceBusSender struct {
 	Sender *azservicebus.Sender
 }
 
-func CreateServiceBusClient(ctx context.Context, clientUrl string, credential azcore.TokenCredential, options *azservicebus.ClientOptions) (*ServiceBus, error) {
+func CreateServiceBusClient(ctx context.Context, clientUrl string, credential azcore.TokenCredential, options *azservicebus.ClientOptions) (ServiceBusClientInterface, error) {
 
 	logger := ctxlogger.GetLogger(ctx)
 	logger.Info("Creating Service Bus!")
@@ -49,7 +49,7 @@ func CreateServiceBusClient(ctx context.Context, clientUrl string, credential az
 	return servicebus, nil
 }
 
-func CreateServiceBusClientFromConnectionString(ctx context.Context, connectionString string, options *azservicebus.ClientOptions) (*ServiceBus, error) {
+func CreateServiceBusClientFromConnectionString(ctx context.Context, connectionString string, options *azservicebus.ClientOptions) (ServiceBusClientInterface, error) {
 
 	logger := ctxlogger.GetLogger(ctx)
 	logger.Info("Creating Service Bus from Connection String!")
@@ -66,7 +66,7 @@ func CreateServiceBusClientFromConnectionString(ctx context.Context, connectionS
 
 	return servicebus, nil
 }
-func (sb *ServiceBus) NewServiceBusReceiver(ctx context.Context, topicOrQueue string, options *azservicebus.ReceiverOptions) (*ServiceBusReceiver, error) {
+func (sb *ServiceBus) NewServiceBusReceiver(ctx context.Context, topicOrQueue string, options *azservicebus.ReceiverOptions) (ReceiverInterface, error) {
 	logger := ctxlogger.GetLogger(ctx)
 	logger.Info("Creating new service bus receiver.")
 
@@ -83,7 +83,7 @@ func (sb *ServiceBus) NewServiceBusReceiver(ctx context.Context, topicOrQueue st
 	return serviceBusReceiver, nil
 }
 
-func (sb *ServiceBus) NewServiceBusSender(ctx context.Context, queue string, options *azservicebus.NewSenderOptions) (*ServiceBusSender, error) {
+func (sb *ServiceBus) NewServiceBusSender(ctx context.Context, queue string, options *azservicebus.NewSenderOptions) (SenderInterface, error) {
 	logger := ctxlogger.GetLogger(ctx)
 	logger.Info("Creating new service bus sender.")
 
@@ -118,7 +118,6 @@ func (s *ServiceBusSender) SendMessage(ctx context.Context, message []byte) erro
 	return nil
 }
 
-// TODO(mheberling): Don't think this is necessary.
 func (r *ServiceBusReceiver) ReceiveMessage(ctx context.Context) ([]byte, error) {
 	logger := ctxlogger.GetLogger(ctx)
 	logger.Info("Creating new service bus sender.")
