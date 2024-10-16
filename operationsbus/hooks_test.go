@@ -42,7 +42,7 @@ func (l *LongRunningOperation) GuardConcurrency(context.Context, Entity) *Catego
 	return nil
 }
 
-func (l *LongRunningOperation) Init(ctx context.Context, opReq OperationRequest) (ApiOperation, error) {
+func (l *LongRunningOperation) InitOperation(ctx context.Context, opReq OperationRequest) (ApiOperation, error) {
 	l.opReq = opReq
 	l.num = 1
 	return nil, nil
@@ -86,7 +86,7 @@ func TestHooks(t *testing.T) {
 		OperationHooks: hooksSlice,
 	}
 
-	_, err = hOperation.Init(ctx, body)
+	_, err = hOperation.InitOperation(ctx, body)
 	if err != nil {
 		t.Fatalf("Error initializing operation: " + err.Error())
 	}
@@ -114,7 +114,7 @@ func TestHooks(t *testing.T) {
 		t.Fatalf("Error creating instance of operation: " + err.Error())
 	}
 
-	_, err = hOperation.Init(ctx, body)
+	_, err = hOperation.InitOperation(ctx, body)
 	if err != nil {
 		t.Fatalf("Error initializing operation: " + err.Error())
 	}

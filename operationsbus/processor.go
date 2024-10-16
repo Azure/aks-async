@@ -113,7 +113,7 @@ func myHandler(matcher *Matcher, operationController OperationController, sender
 			}
 
 			// 3. Init the operation with the information we have.
-			_, err = operation.Init(ctx, body)
+			_, err = operation.InitOperation(ctx, body)
 			if err != nil {
 				logger.Error("Something went wrong initializing the operation.")
 				panic(err)
