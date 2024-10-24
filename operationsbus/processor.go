@@ -16,8 +16,8 @@ import (
 
 // The processor will be utilized to "process" all the operations by receiving the message, guarding against concurrency, running the operation, and updating the right database status.
 func CreateProcessor(
-	sender sb.ServiceBusSender,
-	serviceBusReceiver sb.ServiceBusReceiver,
+	sender sb.SenderInterface,
+	serviceBusReceiver sb.ReceiverInterface,
 	matcher *Matcher,
 	operationController OperationController,
 	customHandler shuttle.HandlerFunc,
@@ -58,9 +58,14 @@ func CreateProcessor(
 		}
 	}
 
+	azReceiver, err := serviceBusReceiver.GetAzureReceiver()
+	if err != nil {
+		return nil, err
+	}
+
 	// Create the processor using the (potentially custom) handler
 	p := shuttle.NewProcessor(
-		serviceBusReceiver.Receiver,
+		azReceiver,
 		customHandler,
 		&shuttle.ProcessorOptions{
 			MaxConcurrency:  1,
@@ -72,7 +77,7 @@ func CreateProcessor(
 }
 
 // TODO(mheberling): is there a way to change this so that it doesn't rely only on azure service bus? Maybe try having a message type that has azservicebus.ReceivedMessage inside and passing that here?
-func myHandler(matcher *Matcher, operationController OperationController, sender sb.ServiceBusSender, hooks []BaseOperationHooksInterface) shuttle.HandlerFunc {
+func myHandler(matcher *Matcher, operationController OperationController, sender sb.SenderInterface, hooks []BaseOperationHooksInterface) shuttle.HandlerFunc {
 	return func(ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage) {
 		logger := ctxlogger.GetLogger(ctx)
 
@@ -180,7 +185,7 @@ func basicPanicRecovery(operationController OperationController) func(ctx contex
 	}
 }
 
-func operationPanicRecovery(operationController OperationController, sender sb.ServiceBusSender) func(ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage, recovered any) {
+func operationPanicRecovery(operationController OperationController, sender sb.SenderInterface) func(ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage, recovered any) {
 	return func(ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage, recovered any) {
 		logger := ctxlogger.GetLogger(ctx)
 		logger.Info("Recovering from panic after getting operation.")
@@ -192,6 +197,7 @@ func operationPanicRecovery(operationController OperationController, sender sb.S
 			return
 		}
 		// Retry the message
+		//TODO(mheberling): Remove retry logic in favor of servicebus automatic retry.
 		err = body.Retry(ctx, sender)
 		if err != nil {
 			logger.Error("Error retrying: " + err.Error())

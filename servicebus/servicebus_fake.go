@@ -45,6 +45,10 @@ func (s *FakeSender) SendMessage(_ context.Context, message []byte) error {
 	return nil
 }
 
+func (s *FakeSender) GetAzureSender() (*azservicebus.Sender, error) {
+	return nil, nil
+}
+
 type FakeReceiver struct {
 	client *FakeServiceBusClient
 }
@@ -60,4 +64,8 @@ func (r *FakeReceiver) ReceiveMessage(_ context.Context) ([]byte, error) {
 	message := r.client.messages[0]
 	r.client.messages = r.client.messages[1:]
 	return message, nil
+}
+
+func (s *FakeReceiver) GetAzureReceiver() (*azservicebus.Receiver, error) {
+	return nil, nil
 }

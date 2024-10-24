@@ -2,6 +2,7 @@ package servicebus
 
 import (
 	"context"
+	"errors"
 
 	"github.com/Azure/aks-middleware/ctxlogger"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
@@ -116,6 +117,22 @@ func (s *ServiceBusSender) SendMessage(ctx context.Context, message []byte) erro
 
 	logger.Info("Message sent successfully!")
 	return nil
+}
+
+func (s *ServiceBusSender) GetAzureSender() (*azservicebus.Sender, error) {
+	if s.Sender != nil {
+		return s.Sender, nil
+	} else {
+		return nil, errors.New("No Sender was found.")
+	}
+}
+
+func (s *ServiceBusReceiver) GetAzureReceiver() (*azservicebus.Receiver, error) {
+	if s.Receiver != nil {
+		return s.Receiver, nil
+	} else {
+		return nil, errors.New("No Receiver was found.")
+	}
 }
 
 func (r *ServiceBusReceiver) ReceiveMessage(ctx context.Context) ([]byte, error) {
