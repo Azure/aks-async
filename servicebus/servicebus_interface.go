@@ -13,8 +13,10 @@ type ServiceBusClientInterface interface {
 
 type SenderInterface interface {
 	SendMessage(ctx context.Context, message []byte) error
+	GetAzureSender() (*azservicebus.Sender, error)
 }
 
 type ReceiverInterface interface {
 	ReceiveMessage(ctx context.Context) ([]byte, error)
+	GetAzureReceiver() (*azservicebus.Receiver, error)
 }

@@ -22,6 +22,7 @@ import (
 type MockServiceBusClientInterface struct {
 	ctrl     *gomock.Controller
 	recorder *MockServiceBusClientInterfaceMockRecorder
+	isgomock struct{}
 }
 
 // MockServiceBusClientInterfaceMockRecorder is the mock recorder for MockServiceBusClientInterface.
@@ -75,6 +76,7 @@ func (mr *MockServiceBusClientInterfaceMockRecorder) NewServiceBusSender(ctx, qu
 type MockSenderInterface struct {
 	ctrl     *gomock.Controller
 	recorder *MockSenderInterfaceMockRecorder
+	isgomock struct{}
 }
 
 // MockSenderInterfaceMockRecorder is the mock recorder for MockSenderInterface.
@@ -92,6 +94,21 @@ func NewMockSenderInterface(ctrl *gomock.Controller) *MockSenderInterface {
 // EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockSenderInterface) EXPECT() *MockSenderInterfaceMockRecorder {
 	return m.recorder
+}
+
+// GetAzureSender mocks base method.
+func (m *MockSenderInterface) GetAzureSender() (*azservicebus.Sender, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetAzureSender")
+	ret0, _ := ret[0].(*azservicebus.Sender)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetAzureSender indicates an expected call of GetAzureSender.
+func (mr *MockSenderInterfaceMockRecorder) GetAzureSender() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAzureSender", reflect.TypeOf((*MockSenderInterface)(nil).GetAzureSender))
 }
 
 // SendMessage mocks base method.
@@ -112,6 +129,7 @@ func (mr *MockSenderInterfaceMockRecorder) SendMessage(ctx, message any) *gomock
 type MockReceiverInterface struct {
 	ctrl     *gomock.Controller
 	recorder *MockReceiverInterfaceMockRecorder
+	isgomock struct{}
 }
 
 // MockReceiverInterfaceMockRecorder is the mock recorder for MockReceiverInterface.
@@ -129,6 +147,21 @@ func NewMockReceiverInterface(ctrl *gomock.Controller) *MockReceiverInterface {
 // EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockReceiverInterface) EXPECT() *MockReceiverInterfaceMockRecorder {
 	return m.recorder
+}
+
+// GetAzureReceiver mocks base method.
+func (m *MockReceiverInterface) GetAzureReceiver() (*azservicebus.Receiver, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetAzureReceiver")
+	ret0, _ := ret[0].(*azservicebus.Receiver)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetAzureReceiver indicates an expected call of GetAzureReceiver.
+func (mr *MockReceiverInterfaceMockRecorder) GetAzureReceiver() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAzureReceiver", reflect.TypeOf((*MockReceiverInterface)(nil).GetAzureReceiver))
 }
 
 // ReceiveMessage mocks base method.
