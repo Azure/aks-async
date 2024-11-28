@@ -12,18 +12,20 @@ type RunOnlyHooks struct {
 	HookedApiOperation
 }
 
-func (h *RunOnlyHooks) BeforeRun(ctx context.Context, op *ApiOperation) {
+func (h *RunOnlyHooks) BeforeRun(ctx context.Context, op *ApiOperation) error {
 	fmt.Println("This is the before internal run hook!")
 	if longOp, ok := (*op).(*LongRunningOperation); ok {
 		longOp.num += 1
 	}
+	return nil
 }
 
-func (h *RunOnlyHooks) AfterRun(ctx context.Context, op *ApiOperation, err error) {
+func (h *RunOnlyHooks) AfterRun(ctx context.Context, op *ApiOperation, err error) error {
 	fmt.Println("This is the after internal run hook!")
 	if longOp, ok := (*op).(*LongRunningOperation); ok {
 		longOp.num += 1
 	}
+	return nil
 }
 
 // Sample operation
@@ -48,7 +50,7 @@ func (l *LongRunningOperation) InitOperation(ctx context.Context, opReq Operatio
 	return nil, nil
 }
 
-func (l *LongRunningOperation) GetOperationRequest(context.Context) *OperationRequest {
+func (l *LongRunningOperation) GetOperationRequest() *OperationRequest {
 	return &l.opReq
 }
 

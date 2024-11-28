@@ -9,4 +9,5 @@ type ApiOperation interface {
 	InitOperation(context.Context, OperationRequest) (ApiOperation, error)
 	GuardConcurrency(context.Context, Entity) *CategorizedError
 	Run(context.Context) error
+	GetOperationRequest() *OperationRequest
 }

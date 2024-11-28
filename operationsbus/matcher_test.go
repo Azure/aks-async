@@ -7,12 +7,6 @@ import (
 	"testing"
 )
 
-type LongRunning struct {
-	num int
-}
-
-var _ ApiOperation = (*LongRunning)(nil)
-
 func TestMatcher(t *testing.T) {
 	matcher := NewMatcher()
 
@@ -55,10 +49,16 @@ func TestMatcher(t *testing.T) {
 }
 
 // Example implementation of ApiOperation for LongRunning
-func (lr *LongRunning) Run(ctx context.Context) error {
-	fmt.Println("Running LongRunning operation")
-	lr.num += 1
-	return nil
+type LongRunning struct {
+	num int
+}
+
+var _ ApiOperation = (*LongRunning)(nil)
+
+func (lr *LongRunning) InitOperation(ctx context.Context, req OperationRequest) (ApiOperation, error) {
+	fmt.Println("Initializing LongRunning operation with request")
+	lr.num = 1
+	return nil, nil
 }
 
 func (lr *LongRunning) GuardConcurrency(ctx context.Context, entity Entity) *CategorizedError {
@@ -66,8 +66,12 @@ func (lr *LongRunning) GuardConcurrency(ctx context.Context, entity Entity) *Cat
 	return &CategorizedError{}
 }
 
-func (lr *LongRunning) InitOperation(ctx context.Context, req OperationRequest) (ApiOperation, error) {
-	fmt.Println("Initializing LongRunning operation with request")
-	lr.num = 1
-	return nil, nil
+func (lr *LongRunning) Run(ctx context.Context) error {
+	fmt.Println("Running LongRunning operation")
+	lr.num += 1
+	return nil
+}
+
+func (lr *LongRunning) GetOperationRequest() *OperationRequest {
+	return &OperationRequest{}
 }
