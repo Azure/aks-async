@@ -3,6 +3,7 @@ package operationsbus
 import (
 	"context"
 	"encoding/json"
+	"log/slog"
 	"time"
 
 	sb "github.com/Azure/aks-async/servicebus"
@@ -17,24 +18,11 @@ func CreateProcessor(
 	serviceBusReceiver sb.ReceiverInterface,
 	matcher *Matcher,
 	operationController OperationController,
+	logger *slog.Logger,
 	customHandler shuttle.HandlerFunc,
 	processorOptions *shuttle.ProcessorOptions,
 	hooks []BaseOperationHooksInterface,
 ) (*shuttle.Processor, error) {
-
-	// Add the operationController hook if the user passed in the operationController
-	// if operationController != nil {
-	// 	operationControllerHook := &OperationControllerHook{
-	// 		opController: operationController,
-	// 	}
-	// 	if hooks == nil {
-	// 		hooks = []BaseOperationHooksInterface{
-	// 			operationControllerHook,
-	// 		}
-	// 	} else {
-	// 		hooks = append(hooks, operationControllerHook)
-	// 	}
-	// }
 
 	// Define the default handler chain
 	defaultHandler := func() shuttle.HandlerFunc {
@@ -48,7 +36,6 @@ func CreateProcessor(
 			errorHandler = NewOperationControllerHandler(
 				NewErrorReturnHandler(
 					myHandler(matcher, hooks),
-					operationController,
 					serviceBusReceiver,
 					nil,
 				),
@@ -57,7 +44,6 @@ func CreateProcessor(
 		} else {
 			errorHandler = NewErrorReturnHandler(
 				myHandler(matcher, hooks),
-				operationController,
 				serviceBusReceiver,
 				nil,
 			)
@@ -69,7 +55,7 @@ func CreateProcessor(
 			shuttle.NewRenewLockHandler(
 				lockRenewalOptions,
 				NewLogHandler(
-					nil,
+					logger,
 					NewQosErrorHandler(
 						errorHandler,
 					),

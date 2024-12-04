@@ -77,7 +77,7 @@ func NewQoSHandler(logger *slog.Logger, next shuttle.HandlerFunc) shuttle.Handle
 }
 
 // An error handler that continues the normal shuttle.HandlerFunc handler chain.
-func NewErrorHandler(errHandler ErrorHandlerFunc, operationController OperationController, receiver sb.ReceiverInterface, next shuttle.HandlerFunc) shuttle.HandlerFunc {
+func NewErrorHandler(errHandler ErrorHandlerFunc, receiver sb.ReceiverInterface, next shuttle.HandlerFunc) shuttle.HandlerFunc {
 	return func(ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage) {
 		err := errHandler.Handle(ctx, settler, message)
 		if err != nil {
@@ -102,7 +102,7 @@ func NewErrorHandler(errHandler ErrorHandlerFunc, operationController OperationC
 }
 
 // An error handler that provides the error to the parent handler for logging.
-func NewErrorReturnHandler(errHandler ErrorHandlerFunc, operationController OperationController, receiver sb.ReceiverInterface, next shuttle.HandlerFunc) ErrorHandlerFunc {
+func NewErrorReturnHandler(errHandler ErrorHandlerFunc, receiver sb.ReceiverInterface, next shuttle.HandlerFunc) ErrorHandlerFunc {
 	return func(ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage) error {
 		err := errHandler.Handle(ctx, settler, message)
 		if err != nil {
@@ -128,6 +128,7 @@ func NewErrorReturnHandler(errHandler ErrorHandlerFunc, operationController Oper
 	}
 }
 
+// Handler for when the user uses the OperationController
 func NewOperationControllerHandler(errHandler ErrorHandlerFunc, operationController OperationController) ErrorHandlerFunc {
 	return func(ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage) error {
 		logger := ctxlogger.GetLogger(ctx)
@@ -139,6 +140,9 @@ func NewOperationControllerHandler(errHandler ErrorHandlerFunc, operationControl
 			return nil
 		}
 
+		// If the operation is picked up immediately from the service bus, while the operationController is still putting the
+		// operation into the hcp and operations databases, this step might fail if both databases have not been updated.
+		// Allowing a couple of retries before fully failing the operation due to this error.
 		opInProgress := false
 		for i := 0; i < 5; i++ {
 			err = operationController.OperationInProgress(ctx, body.OperationId)
