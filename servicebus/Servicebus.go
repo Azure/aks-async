@@ -137,7 +137,7 @@ func (s *ServiceBusReceiver) GetAzureReceiver() (*azservicebus.Receiver, error) 
 
 func (r *ServiceBusReceiver) ReceiveMessage(ctx context.Context) ([]byte, error) {
 	logger := ctxlogger.GetLogger(ctx)
-	logger.Info("Creating new service bus sender.")
+	logger.Info("Receiving message")
 
 	messages, err := r.Receiver.ReceiveMessages(ctx, 1, nil)
 	if err != nil {

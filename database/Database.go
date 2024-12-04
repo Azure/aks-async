@@ -78,7 +78,7 @@ func QueryDb(ctx context.Context, db *sql.DB, query string, args ...interface{})
 // Execute a query for "INSERT", "UPDATE", or "DELETE" methods which affect rows.
 func ExecDb(ctx context.Context, db *sql.DB, query string, args ...interface{}) (sql.Result, error) {
 	logger := ctxlogger.GetLogger(ctx)
-	logger.Info("Querying db.")
+	logger.Info("Executing query to db.")
 	result, err := db.ExecContext(ctx, query, args...)
 	if err != nil {
 		log.Info("Error executing query: " + query + ". With error: " + err.Error())

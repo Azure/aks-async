@@ -12,18 +12,20 @@ type RunOnlyHooks struct {
 	HookedApiOperation
 }
 
-func (h *RunOnlyHooks) BeforeRun(ctx context.Context, op *ApiOperation) {
+func (h *RunOnlyHooks) BeforeRun(ctx context.Context, op *ApiOperation) error {
 	fmt.Println("This is the before internal run hook!")
 	if longOp, ok := (*op).(*LongRunningOperation); ok {
 		longOp.num += 1
 	}
+	return nil
 }
 
-func (h *RunOnlyHooks) AfterRun(ctx context.Context, op *ApiOperation, err error) {
+func (h *RunOnlyHooks) AfterRun(ctx context.Context, op *ApiOperation, err error) error {
 	fmt.Println("This is the after internal run hook!")
 	if longOp, ok := (*op).(*LongRunningOperation); ok {
 		longOp.num += 1
 	}
+	return nil
 }
 
 // Sample operation
@@ -38,7 +40,7 @@ func (l *LongRunningOperation) Run(context.Context) error {
 	return nil
 }
 
-func (l *LongRunningOperation) GuardConcurrency(context.Context, Entity) *CategorizedError {
+func (l *LongRunningOperation) GuardConcurrency(context.Context) *CategorizedError {
 	return nil
 }
 
@@ -48,7 +50,7 @@ func (l *LongRunningOperation) InitOperation(ctx context.Context, opReq Operatio
 	return nil, nil
 }
 
-func (l *LongRunningOperation) GetOperationRequest(context.Context) *OperationRequest {
+func (l *LongRunningOperation) GetOperationRequest() *OperationRequest {
 	return &l.opReq
 }
 
@@ -91,7 +93,7 @@ func TestHooks(t *testing.T) {
 		t.Fatalf("Error initializing operation: " + err.Error())
 	}
 
-	_ = hOperation.GuardConcurrency(ctx, nil)
+	_ = hOperation.GuardConcurrency(ctx)
 	_ = hOperation.Run(ctx)
 	if longOp, ok := (*hOperation.Operation).(*LongRunningOperation); ok {
 		if longOp.num == 3 {
@@ -119,7 +121,7 @@ func TestHooks(t *testing.T) {
 		t.Fatalf("Error initializing operation: " + err.Error())
 	}
 
-	_ = hOperation.GuardConcurrency(ctx, nil)
+	_ = hOperation.GuardConcurrency(ctx)
 	_ = hOperation.Run(ctx)
 	if longOp, ok := (*hOperation.Operation).(*LongRunningOperation); ok {
 		if longOp.num == 3 {
