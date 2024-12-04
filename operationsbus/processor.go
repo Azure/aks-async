@@ -23,18 +23,18 @@ func CreateProcessor(
 ) (*shuttle.Processor, error) {
 
 	// Add the operationController hook if the user passed in the operationController
-	if operationController != nil {
-		operationControllerHook := &OperationControllerHook{
-			opController: operationController,
-		}
-		if hooks == nil {
-			hooks = []BaseOperationHooksInterface{
-				operationControllerHook,
-			}
-		} else {
-			hooks = append(hooks, operationControllerHook)
-		}
-	}
+	// if operationController != nil {
+	// 	operationControllerHook := &OperationControllerHook{
+	// 		opController: operationController,
+	// 	}
+	// 	if hooks == nil {
+	// 		hooks = []BaseOperationHooksInterface{
+	// 			operationControllerHook,
+	// 		}
+	// 	} else {
+	// 		hooks = append(hooks, operationControllerHook)
+	// 	}
+	// }
 
 	// Define the default handler chain
 	defaultHandler := func() shuttle.HandlerFunc {
@@ -42,6 +42,26 @@ func CreateProcessor(
 		// Lock renewal settings
 		lockRenewalInterval := 10 * time.Second
 		lockRenewalOptions := &shuttle.LockRenewalOptions{Interval: &lockRenewalInterval}
+
+		var errorHandler ErrorHandlerFunc
+		if operationController != nil {
+			errorHandler = NewOperationControllerHandler(
+				NewErrorReturnHandler(
+					myHandler(matcher, hooks),
+					operationController,
+					serviceBusReceiver,
+					nil,
+				),
+				operationController,
+			)
+		} else {
+			errorHandler = NewErrorReturnHandler(
+				myHandler(matcher, hooks),
+				operationController,
+				serviceBusReceiver,
+				nil,
+			)
+		}
 
 		// Combine handlers into a single default handler
 		return shuttle.NewPanicHandler(
@@ -51,10 +71,7 @@ func CreateProcessor(
 				NewLogHandler(
 					nil,
 					NewQosErrorHandler(
-						myHandler(matcher, operationController, hooks),
-						operationController,
-						serviceBusReceiver,
-						nil,
+						errorHandler,
 					),
 				),
 			),
@@ -88,7 +105,7 @@ func CreateProcessor(
 	return p, nil
 }
 
-func myHandler(matcher *Matcher, operationController OperationController, hooks []BaseOperationHooksInterface) ErrorHandlerFunc {
+func myHandler(matcher *Matcher, hooks []BaseOperationHooksInterface) ErrorHandlerFunc {
 	return func(ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage) error {
 		logger := ctxlogger.GetLogger(ctx)
 
@@ -115,14 +132,15 @@ func myHandler(matcher *Matcher, operationController OperationController, hooks 
 		}
 
 		// 4. Get the entity.
-		entity, err := operationController.OperationGetEntity(ctx, body)
-		if err != nil {
-			logger.Error("Entity was not able to be retrieved: " + err.Error())
-			return &RetryError{Message: "Error setting operation In Progress"}
-		}
+		//TODO(mheberling): It's the job of the operation to get the entity.
+		// entity, err := operationController.OperationGetEntity(ctx, body)
+		// if err != nil {
+		// 	logger.Error("Entity was not able to be retrieved: " + err.Error())
+		// 	return &RetryError{Message: "Error setting operation In Progress"}
+		// }
 
 		// 5. Guard against concurrency.
-		ce := operation.GuardConcurrency(ctx, entity)
+		ce := operation.GuardConcurrency(ctx)
 		if err != nil {
 			logger.Error("Error calling GuardConcurrency: " + ce.Err.Error())
 			return &RetryError{Message: "Error guarding operation concurrency."}

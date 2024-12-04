@@ -41,31 +41,8 @@ func (f ErrorHandlerFunc) Handle(ctx context.Context, settler shuttle.MessageSet
 	return f(ctx, settler, message)
 }
 
-func NewErrorHandler(errHandler ErrorHandlerFunc, operationController OperationController, receiver sb.ReceiverInterface, next shuttle.HandlerFunc) shuttle.HandlerFunc {
-	return func(ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage) {
-		err := errHandler.Handle(ctx, settler, message)
-		if err != nil {
-			logger := ctxlogger.GetLogger(ctx)
-			logger.Error("ErrorHandler: Handling error: " + err.Error())
-			switch err.(type) {
-			case *NonRetryError:
-				logger.Info("ErrorHandler: Handling NonRetryError.")
-				nonRetryOperationError(operationController, ctx, settler, message)
-			case *RetryError:
-				logger.Info("ErrorHandler: Handling RetryError.")
-				retryOperationError(operationController, receiver, ctx, settler, message)
-			default:
-				logger.Info("Error handled: " + err.Error())
-			}
-		}
-
-		if next != nil {
-			next(ctx, settler, message)
-		}
-	}
-}
-
-func NewQosErrorHandler(errHandler ErrorHandlerFunc, operationController OperationController, receiver sb.ReceiverInterface, next shuttle.HandlerFunc) shuttle.HandlerFunc {
+// A QoS handler that is able to log the errors as well.
+func NewQosErrorHandler(errHandler ErrorHandlerFunc) shuttle.HandlerFunc {
 	return func(ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage) {
 		logger := ctxlogger.GetLogger(ctx)
 		start := time.Now()
@@ -75,15 +52,44 @@ func NewQosErrorHandler(errHandler ErrorHandlerFunc, operationController Operati
 		logger.Info("QoS: Operation started at: " + start.String())
 		logger.Info("QoS: Operation processed at: " + t.String())
 		logger.Info("QoS: Operation took " + elapsed.String() + " to process.")
+
 		if err != nil {
+			logger.Error("QoS: Error ocurred in previousHandler: " + err.Error())
+		}
+	}
+}
+
+// NewQoSHandler creates a new QoS handler with the provided logger.
+func NewQoSHandler(logger *slog.Logger, next shuttle.HandlerFunc) shuttle.HandlerFunc {
+	return func(ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage) {
+		if logger == nil {
+			logger = ctxlogger.GetLogger(ctx)
+		}
+
+		start := time.Now()
+		next(ctx, settler, message)
+		t := time.Now()
+		elapsed := t.Sub(start)
+		logger.Info("QoSHandler: Operation started at: " + start.String())
+		logger.Info("QoSHandler: Operation processed at: " + t.String())
+		logger.Info("QoSHandler: Operation took " + elapsed.String() + " to process.")
+	}
+}
+
+// An error handler that continues the normal shuttle.HandlerFunc handler chain.
+func NewErrorHandler(errHandler ErrorHandlerFunc, operationController OperationController, receiver sb.ReceiverInterface, next shuttle.HandlerFunc) shuttle.HandlerFunc {
+	return func(ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage) {
+		err := errHandler.Handle(ctx, settler, message)
+		if err != nil {
+			logger := ctxlogger.GetLogger(ctx)
 			logger.Error("ErrorHandler: Handling error: " + err.Error())
 			switch err.(type) {
 			case *NonRetryError:
 				logger.Info("ErrorHandler: Handling NonRetryError.")
-				nonRetryOperationError(operationController, ctx, settler, message)
+				nonRetryOperationError(ctx, settler, message)
 			case *RetryError:
 				logger.Info("ErrorHandler: Handling RetryError.")
-				retryOperationError(operationController, receiver, ctx, settler, message)
+				retryOperationError(receiver, ctx, settler, message)
 			default:
 				logger.Info("Error handled: " + err.Error())
 			}
@@ -95,7 +101,100 @@ func NewQosErrorHandler(errHandler ErrorHandlerFunc, operationController Operati
 	}
 }
 
-// NewLogHandler creates a new log handler with the provided logger
+// An error handler that provides the error to the parent handler for logging.
+func NewErrorReturnHandler(errHandler ErrorHandlerFunc, operationController OperationController, receiver sb.ReceiverInterface, next shuttle.HandlerFunc) ErrorHandlerFunc {
+	return func(ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage) error {
+		err := errHandler.Handle(ctx, settler, message)
+		if err != nil {
+			logger := ctxlogger.GetLogger(ctx)
+			logger.Error("ErrorHandler: Handling error: " + err.Error())
+			switch err.(type) {
+			case *NonRetryError:
+				logger.Info("ErrorHandler: Handling NonRetryError.")
+				nonRetryOperationError(ctx, settler, message)
+			case *RetryError:
+				logger.Info("ErrorHandler: Handling RetryError.")
+				retryOperationError(receiver, ctx, settler, message)
+			default:
+				logger.Info("Error handled: " + err.Error())
+			}
+		}
+
+		if next != nil {
+			next(ctx, settler, message)
+		}
+
+		return err
+	}
+}
+
+func NewOperationControllerHandler(errHandler ErrorHandlerFunc, operationController OperationController) ErrorHandlerFunc {
+	return func(ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage) error {
+		logger := ctxlogger.GetLogger(ctx)
+
+		var body OperationRequest
+		err := json.Unmarshal(message.Body, &body)
+		if err != nil {
+			logger.Error("OperationControllerHandler: Error unmarshalling message: " + err.Error())
+			return nil
+		}
+
+		opInProgress := false
+		for i := 0; i < 5; i++ {
+			err = operationController.OperationInProgress(ctx, body.OperationId)
+			if err != nil {
+				logger.Error("OperationControllerHandler: Error setting operation in progress: " + err.Error())
+				logger.Info("Trying again.")
+			} else {
+				opInProgress = true
+				break
+			}
+		}
+
+		if !opInProgress {
+			logger.Error("Operation was not able to be put in progress.")
+			return nil
+		}
+
+		err = errHandler.Handle(ctx, settler, message)
+
+		if err != nil {
+			logger.Info("OperationControllerHandler: Handling error: " + err.Error())
+			switch err.(type) {
+			case *NonRetryError:
+				// Cancel the operation
+				logger.Info("OperationControllerHandler: Setting operation as Cancelled.")
+				err = operationController.OperationCancel(ctx, body.OperationId)
+				if err != nil {
+					logger.Error("OperationControllerHandler: Something went wrong setting the operation as Cancelled.")
+					return nil
+				}
+			case *RetryError:
+				// Set the operation as Pending
+				logger.Info("OperationControllerHandler: Setting operation as Pending.")
+				err = operationController.OperationPending(ctx, body.OperationId)
+				if err != nil {
+					logger.Error("OperationControllerHandler: Something went wrong setting the operation as Pending.")
+					return nil
+				}
+			default:
+				logger.Info("OperationControllerHandler: Error type not recognized. Operation status not changed.")
+			}
+		} else {
+			logger.Info("Setting Operation as Successful.")
+			err = operationController.OperationCompleted(ctx, body.OperationId)
+			if err != nil {
+				logger.Error("OperationControllerHandler: Something went wrong setting the operation as Completed.")
+				return nil
+			}
+		}
+
+		// We only pass along the error of the operation.
+		return err
+	}
+}
+
+// NewLogHandler creates a new log handler with the provided logger.
 func NewLogHandler(logger *slog.Logger, next shuttle.HandlerFunc) shuttle.HandlerFunc {
 	return func(ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage) {
 		if logger == nil {
@@ -120,24 +219,7 @@ func NewLogHandler(logger *slog.Logger, next shuttle.HandlerFunc) shuttle.Handle
 	}
 }
 
-// NewQoSHandler creates a new QoS handler with the provided logger
-func NewQoSHandler(logger *slog.Logger, next shuttle.HandlerFunc) shuttle.HandlerFunc {
-	return func(ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage) {
-		if logger == nil {
-			logger = ctxlogger.GetLogger(ctx)
-		}
-
-		start := time.Now()
-		next(ctx, settler, message)
-		t := time.Now()
-		elapsed := t.Sub(start)
-		logger.Info("QoSHandler: Operation started at: " + start.String())
-		logger.Info("QoSHandler: Operation processed at: " + t.String())
-		logger.Info("QoSHandler: Operation took " + elapsed.String() + " to process.")
-	}
-}
-
-func nonRetryOperationError(operationController OperationController, ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage) error {
+func nonRetryOperationError(ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage) error {
 	logger := ctxlogger.GetLogger(ctx)
 	logger.Info("Non Retry Operation Error.")
 
@@ -151,16 +233,10 @@ func nonRetryOperationError(operationController OperationController, ctx context
 	// Settle message
 	settleMessage(ctx, settler, message, nil)
 
-	// Cancel the operation
-	err = operationController.OperationCancel(ctx, body.OperationId)
-	if err != nil {
-		logger.Error("Something went wrong setting the operation as Cancelled.")
-		return err
-	}
 	return nil
 }
 
-func retryOperationError(operationController OperationController, receiver sb.ReceiverInterface, ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage) error {
+func retryOperationError(receiver sb.ReceiverInterface, ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage) error {
 	logger := ctxlogger.GetLogger(ctx)
 	logger.Info("Abandoning message for retry.")
 
@@ -180,13 +256,6 @@ func retryOperationError(operationController OperationController, receiver sb.Re
 	err = azReceiver.AbandonMessage(ctx, message, nil)
 	if err != nil {
 		logger.Error("Error abandoning message: " + err.Error())
-		return err
-	}
-
-	// Set the operation as Pending
-	err = operationController.OperationPending(ctx, body.OperationId)
-	if err != nil {
-		logger.Error("Something went wrong setting the operation as Pending.")
 		return err
 	}
 
