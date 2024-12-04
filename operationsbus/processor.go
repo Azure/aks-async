@@ -131,29 +131,21 @@ func myHandler(matcher *Matcher, hooks []BaseOperationHooksInterface) ErrorHandl
 			return &RetryError{Message: "Error setting operation In Progress"}
 		}
 
-		// 4. Get the entity.
-		//TODO(mheberling): It's the job of the operation to get the entity.
-		// entity, err := operationController.OperationGetEntity(ctx, body)
-		// if err != nil {
-		// 	logger.Error("Entity was not able to be retrieved: " + err.Error())
-		// 	return &RetryError{Message: "Error setting operation In Progress"}
-		// }
-
-		// 5. Guard against concurrency.
+		// 4. Guard against concurrency.
 		ce := operation.GuardConcurrency(ctx)
 		if err != nil {
 			logger.Error("Error calling GuardConcurrency: " + ce.Err.Error())
 			return &RetryError{Message: "Error guarding operation concurrency."}
 		}
 
-		// 6. Call run on the operation
+		// 5. Call run on the operation
 		err = operation.Run(ctx)
 		if err != nil {
 			logger.Error("Something went wrong running the operation: " + err.Error())
 			return &RetryError{Message: "Error running operation."}
 		}
 
-		// 7. Finish the message
+		// 6. Finish the message
 		settleMessage(ctx, settler, message, nil)
 
 		logger.Info("Operation run successfully!")
