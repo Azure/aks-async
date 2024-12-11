@@ -41,6 +41,51 @@ func (f ErrorHandlerFunc) Handle(ctx context.Context, settler shuttle.MessageSet
 	return f(ctx, settler, message)
 }
 
+func DefaultHandlers(
+	serviceBusReceiver sb.ReceiverInterface,
+	matcher *Matcher,
+	operationController OperationController,
+	logger *slog.Logger,
+	hooks []BaseOperationHooksInterface,
+) shuttle.HandlerFunc {
+
+	// Lock renewal settings
+	lockRenewalInterval := 10 * time.Second
+	lockRenewalOptions := &shuttle.LockRenewalOptions{Interval: &lockRenewalInterval}
+
+	var errorHandler ErrorHandlerFunc
+	if operationController != nil {
+		errorHandler = NewOperationControllerHandler(
+			NewErrorReturnHandler(
+				OperationHandler(matcher, hooks),
+				serviceBusReceiver,
+				nil,
+			),
+			operationController,
+		)
+	} else {
+		errorHandler = NewErrorReturnHandler(
+			OperationHandler(matcher, hooks),
+			serviceBusReceiver,
+			nil,
+		)
+	}
+
+	// Combine handlers into a single default handler
+	return shuttle.NewPanicHandler(
+		nil,
+		shuttle.NewRenewLockHandler(
+			lockRenewalOptions,
+			NewLogHandler(
+				logger,
+				NewQosErrorHandler(
+					errorHandler,
+				),
+			),
+		),
+	)
+}
+
 // A QoS handler that is able to log the errors as well.
 func NewQosErrorHandler(errHandler ErrorHandlerFunc) shuttle.HandlerFunc {
 	return func(ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage) {
@@ -264,4 +309,62 @@ func retryOperationError(receiver sb.ReceiverInterface, ctx context.Context, set
 	}
 
 	return nil
+}
+
+func OperationHandler(matcher *Matcher, hooks []BaseOperationHooksInterface) ErrorHandlerFunc {
+	return func(ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage) error {
+		logger := ctxlogger.GetLogger(ctx)
+
+		// 1. Unmarshall the operation
+		var body OperationRequest
+		err := json.Unmarshal(message.Body, &body)
+		if err != nil {
+			logger.Error("Error calling unmarshalling message body: " + err.Error())
+			return &NonRetryError{Message: "Error unmarshalling message."}
+		}
+
+		// 2 Match it with the correct type of operation
+		operation, err := matcher.CreateHookedInstace(body.OperationName, hooks)
+		if err != nil {
+			logger.Error("Operation type doesn't exist in the matcher: " + err.Error())
+			return &NonRetryError{Message: "Error creating operation instance."}
+		}
+
+		// 3. Init the operation with the information we have.
+		_, err = operation.InitOperation(ctx, body)
+		if err != nil {
+			logger.Error("Something went wrong initializing the operation.")
+			return &RetryError{Message: "Error setting operation In Progress"}
+		}
+
+		// 4. Guard against concurrency.
+		ce := operation.GuardConcurrency(ctx)
+		if err != nil {
+			logger.Error("Error calling GuardConcurrency: " + ce.Err.Error())
+			return &RetryError{Message: "Error guarding operation concurrency."}
+		}
+
+		// 5. Call run on the operation
+		err = operation.Run(ctx)
+		if err != nil {
+			logger.Error("Something went wrong running the operation: " + err.Error())
+			return &RetryError{Message: "Error running operation."}
+		}
+
+		// 6. Finish the message
+		settleMessage(ctx, settler, message, nil)
+
+		logger.Info("Operation run successfully!")
+		return nil
+	}
+}
+
+func settleMessage(ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage, options *azservicebus.CompleteMessageOptions) {
+	logger := ctxlogger.GetLogger(ctx)
+	logger.Info("Settling message.")
+
+	err := settler.CompleteMessage(ctx, message, options)
+	if err != nil {
+		logger.Error("Unable to settle message.")
+	}
 }
