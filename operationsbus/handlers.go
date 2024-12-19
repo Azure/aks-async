@@ -45,6 +45,7 @@ func DefaultHandlers(
 	serviceBusReceiver sb.ReceiverInterface,
 	matcher *Matcher,
 	operationController OperationController,
+	entityController EntityController,
 	logger *slog.Logger,
 	hooks []BaseOperationHooksInterface,
 ) shuttle.HandlerFunc {
@@ -57,7 +58,7 @@ func DefaultHandlers(
 	if operationController != nil {
 		errorHandler = NewOperationControllerHandler(
 			NewErrorReturnHandler(
-				OperationHandler(matcher, hooks),
+				OperationHandler(matcher, hooks, entityController),
 				serviceBusReceiver,
 				nil,
 			),
@@ -65,7 +66,7 @@ func DefaultHandlers(
 		)
 	} else {
 		errorHandler = NewErrorReturnHandler(
-			OperationHandler(matcher, hooks),
+			OperationHandler(matcher, hooks, entityController),
 			serviceBusReceiver,
 			nil,
 		)
@@ -311,7 +312,7 @@ func retryOperationError(receiver sb.ReceiverInterface, ctx context.Context, set
 	return nil
 }
 
-func OperationHandler(matcher *Matcher, hooks []BaseOperationHooksInterface) ErrorHandlerFunc {
+func OperationHandler(matcher *Matcher, hooks []BaseOperationHooksInterface, entityController EntityController) ErrorHandlerFunc {
 	return func(ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage) error {
 		logger := ctxlogger.GetLogger(ctx)
 
@@ -337,8 +338,14 @@ func OperationHandler(matcher *Matcher, hooks []BaseOperationHooksInterface) Err
 			return &RetryError{Message: "Error setting operation In Progress"}
 		}
 
+		entity, err := entityController.GetEntity(ctx, body)
+		if err != nil {
+			logger.Error("Something went wrong getting the entity.")
+			return &RetryError{Message: "Error getting operationEntity"}
+		}
+
 		// 4. Guard against concurrency.
-		ce := operation.GuardConcurrency(ctx)
+		ce := operation.GuardConcurrency(ctx, entity)
 		if err != nil {
 			logger.Error("Error calling GuardConcurrency: " + ce.Err.Error())
 			return &RetryError{Message: "Error guarding operation concurrency."}
