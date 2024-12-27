@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"time"
 
+	oc "github.com/Azure/OperationContainer/api/v1"
 	sb "github.com/Azure/aks-async/servicebus"
 	"github.com/Azure/aks-middleware/ctxlogger"
 	"github.com/Azure/azure-sdk-for-go/sdk/messaging/azservicebus"
@@ -44,7 +45,7 @@ func (f ErrorHandlerFunc) Handle(ctx context.Context, settler shuttle.MessageSet
 func DefaultHandlers(
 	serviceBusReceiver sb.ReceiverInterface,
 	matcher *Matcher,
-	operationController OperationController,
+	operationContainer oc.OperationContainerClient,
 	entityController EntityController,
 	logger *slog.Logger,
 	hooks []BaseOperationHooksInterface,
@@ -55,14 +56,14 @@ func DefaultHandlers(
 	lockRenewalOptions := &shuttle.LockRenewalOptions{Interval: &lockRenewalInterval}
 
 	var errorHandler ErrorHandlerFunc
-	if operationController != nil {
-		errorHandler = NewOperationControllerHandler(
+	if operationContainer != nil {
+		errorHandler = NewOperationContainerHandler(
 			NewErrorReturnHandler(
 				OperationHandler(matcher, hooks, entityController),
 				serviceBusReceiver,
 				nil,
 			),
-			operationController,
+			operationContainer,
 		)
 	} else {
 		errorHandler = NewErrorReturnHandler(
@@ -174,26 +175,32 @@ func NewErrorReturnHandler(errHandler ErrorHandlerFunc, receiver sb.ReceiverInte
 	}
 }
 
-// Handler for when the user uses the OperationController
-func NewOperationControllerHandler(errHandler ErrorHandlerFunc, operationController OperationController) ErrorHandlerFunc {
+// Handler for when the user uses the OperationContainer
+func NewOperationContainerHandler(errHandler ErrorHandlerFunc, operationContainer oc.OperationContainerClient) ErrorHandlerFunc {
 	return func(ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage) error {
 		logger := ctxlogger.GetLogger(ctx)
 
 		var body OperationRequest
 		err := json.Unmarshal(message.Body, &body)
 		if err != nil {
-			logger.Error("OperationControllerHandler: Error unmarshalling message: " + err.Error())
+			logger.Error("OperationContainerHandler: Error unmarshalling message: " + err.Error())
 			return nil
 		}
 
+		var updateOperationStatusRequest *oc.UpdateOperationStatusRequest
 		// If the operation is picked up immediately from the service bus, while the operationController is still putting the
 		// operation into the hcp and operations databases, this step might fail if both databases have not been updated.
 		// Allowing a couple of retries before fully failing the operation due to this error.
 		opInProgress := false
 		for i := 0; i < 5; i++ {
-			err = operationController.OperationInProgress(ctx, body.OperationId)
+			// err = operationContainer.OperationInProgress(ctx, body.OperationId)
+			updateOperationStatusRequest = &oc.UpdateOperationStatusRequest{
+				OperationId: body.OperationId,
+				GoalState:   oc.GoalState_IN_PROGRESS,
+			}
+			_, err = operationContainer.UpdateOperationStatus(ctx, updateOperationStatusRequest)
 			if err != nil {
-				logger.Error("OperationControllerHandler: Error setting operation in progress: " + err.Error())
+				logger.Error("OperationContainerHandler: Error setting operation in progress: " + err.Error())
 				logger.Info("Trying again.")
 			} else {
 				opInProgress = true
@@ -209,32 +216,47 @@ func NewOperationControllerHandler(errHandler ErrorHandlerFunc, operationControl
 		err = errHandler.Handle(ctx, settler, message)
 
 		if err != nil {
-			logger.Info("OperationControllerHandler: Handling error: " + err.Error())
+			logger.Info("OperationContainerHandler: Handling error: " + err.Error())
 			switch err.(type) {
 			case *NonRetryError:
 				// Cancel the operation
-				logger.Info("OperationControllerHandler: Setting operation as Cancelled.")
-				err = operationController.OperationCancel(ctx, body.OperationId)
+				logger.Info("OperationContainerHandler: Setting operation as Cancelled.")
+				// err = operationContainerOperationCancel(ctx, body.OperationId)
+				updateOperationStatusRequest = &oc.UpdateOperationStatusRequest{
+					OperationId: body.OperationId,
+					GoalState:   oc.GoalState_CANCELLED,
+				}
+				_, err = operationContainer.UpdateOperationStatus(ctx, updateOperationStatusRequest)
 				if err != nil {
-					logger.Error("OperationControllerHandler: Something went wrong setting the operation as Cancelled.")
+					logger.Error("OperationContainerHandler: Something went wrong setting the operation as Cancelled.")
 					return nil
 				}
 			case *RetryError:
 				// Set the operation as Pending
-				logger.Info("OperationControllerHandler: Setting operation as Pending.")
-				err = operationController.OperationPending(ctx, body.OperationId)
+				logger.Info("OperationContainerHandler: Setting operation as Pending.")
+				// err = operationController.OperationPending(ctx, body.OperationId)
+				updateOperationStatusRequest = &oc.UpdateOperationStatusRequest{
+					OperationId: body.OperationId,
+					GoalState:   oc.GoalState_PENDING,
+				}
+				_, err = operationContainer.UpdateOperationStatus(ctx, updateOperationStatusRequest)
 				if err != nil {
-					logger.Error("OperationControllerHandler: Something went wrong setting the operation as Pending.")
+					logger.Error("OperationContainerHandler: Something went wrong setting the operation as Pending.")
 					return nil
 				}
 			default:
-				logger.Info("OperationControllerHandler: Error type not recognized. Operation status not changed.")
+				logger.Info("OperationContainerHandler: Error type not recognized. Operation status not changed.")
 			}
 		} else {
 			logger.Info("Setting Operation as Successful.")
-			err = operationController.OperationCompleted(ctx, body.OperationId)
+			// err = operationController.OperationCompleted(ctx, body.OperationId)
+			updateOperationStatusRequest = &oc.UpdateOperationStatusRequest{
+				OperationId: body.OperationId,
+				GoalState:   oc.GoalState_COMPLETED,
+			}
+			_, err = operationContainer.UpdateOperationStatus(ctx, updateOperationStatusRequest)
 			if err != nil {
-				logger.Error("OperationControllerHandler: Something went wrong setting the operation as Completed.")
+				logger.Error("OperationContainerHandler: Something went wrong setting the operation as Completed.")
 				return nil
 			}
 		}
