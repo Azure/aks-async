@@ -6,6 +6,7 @@ import (
 
 	sb "github.com/Azure/aks-async/servicebus"
 
+	oc "github.com/Azure/OperationContainer/api/v1"
 	"github.com/Azure/go-shuttle/v2"
 )
 
@@ -13,7 +14,7 @@ import (
 func CreateProcessor(
 	serviceBusReceiver sb.ReceiverInterface,
 	matcher *Matcher,
-	operationController OperationController,
+	operationContainer oc.OperationContainerClient,
 	entityController EntityController,
 	logger *slog.Logger,
 	customHandler shuttle.HandlerFunc,
@@ -32,7 +33,7 @@ func CreateProcessor(
 	// Define the default handler chain
 	// Use the default handler if a custom handler is not provided
 	if customHandler == nil {
-		customHandler = DefaultHandlers(serviceBusReceiver, matcher, operationController, entityController, logger, hooks)
+		customHandler = DefaultHandlers(serviceBusReceiver, matcher, operationContainer, entityController, logger, hooks)
 	}
 
 	if processorOptions == nil {
