@@ -10,7 +10,7 @@ type BaseOperationHooksInterface interface {
 	BeforeInitOperation(ctx context.Context, req OperationRequest) error
 	AfterInitOperation(ctx context.Context, op *ApiOperation, req OperationRequest, err error) error
 
-	BeforeGuardConcurrency(ctx context.Context, op *ApiOperation) error
+	BeforeGuardConcurrency(ctx context.Context, op *ApiOperation, entity Entity) error
 	AfterGuardConcurrency(ctx context.Context, op *ApiOperation, ce *CategorizedError) error
 
 	BeforeRun(ctx context.Context, op *ApiOperation) error
@@ -28,7 +28,7 @@ func (h *HookedApiOperation) BeforeInitOperation(ctx context.Context, req Operat
 func (h *HookedApiOperation) AfterInitOperation(ctx context.Context, op *ApiOperation, req OperationRequest, err error) error {
 	return nil
 }
-func (h *HookedApiOperation) BeforeGuardConcurrency(ctx context.Context, op *ApiOperation) error {
+func (h *HookedApiOperation) BeforeGuardConcurrency(ctx context.Context, op *ApiOperation, entity Entity) error {
 	return nil
 }
 func (h *HookedApiOperation) AfterGuardConcurrency(ctx context.Context, op *ApiOperation, ce *CategorizedError) error {
@@ -68,12 +68,12 @@ func (h *HookedApiOperation) InitOperation(ctx context.Context, opReq OperationR
 	return operation, err
 }
 
-func (h *HookedApiOperation) GuardConcurrency(ctx context.Context) *CategorizedError {
+func (h *HookedApiOperation) GuardConcurrency(ctx context.Context, entity Entity) *CategorizedError {
 	logger := ctxlogger.GetLogger(ctx)
 	var herr error
 	logger.Info("Running BeforeGuardConcurrency hooks.")
 	for _, hook := range h.OperationHooks {
-		herr = hook.BeforeGuardConcurrency(ctx, h.Operation)
+		herr = hook.BeforeGuardConcurrency(ctx, h.Operation, entity)
 		if herr != nil {
 			logger.Error("Something went wrong running a BeforeGuardConcurrency hook: " + herr.Error())
 			return &CategorizedError{
@@ -84,7 +84,7 @@ func (h *HookedApiOperation) GuardConcurrency(ctx context.Context) *CategorizedE
 	}
 
 	logger.Info("Running operation guard concurrency.")
-	ce := (*h.Operation).GuardConcurrency(ctx)
+	ce := (*h.Operation).GuardConcurrency(ctx, entity)
 
 	logger.Info("Running AfterGuardConcurrency hooks.")
 	for _, hook := range h.OperationHooks {

@@ -36,11 +36,11 @@ type LongRunningOperation struct {
 	num   int
 }
 
-func (l *LongRunningOperation) Run(context.Context) error {
+func (l *LongRunningOperation) Run(ctx context.Context) error {
 	return nil
 }
 
-func (l *LongRunningOperation) GuardConcurrency(context.Context) *CategorizedError {
+func (l *LongRunningOperation) GuardConcurrency(ctx context.Context, entity Entity) *CategorizedError {
 	return nil
 }
 
@@ -93,7 +93,7 @@ func TestHooks(t *testing.T) {
 		t.Fatalf("Error initializing operation: " + err.Error())
 	}
 
-	_ = hOperation.GuardConcurrency(ctx)
+	_ = hOperation.GuardConcurrency(ctx, nil)
 	_ = hOperation.Run(ctx)
 	if longOp, ok := (*hOperation.Operation).(*LongRunningOperation); ok {
 		if longOp.num == 3 {
@@ -121,7 +121,7 @@ func TestHooks(t *testing.T) {
 		t.Fatalf("Error initializing operation: " + err.Error())
 	}
 
-	_ = hOperation.GuardConcurrency(ctx)
+	_ = hOperation.GuardConcurrency(ctx, nil)
 	_ = hOperation.Run(ctx)
 	if longOp, ok := (*hOperation.Operation).(*LongRunningOperation); ok {
 		if longOp.num == 3 {

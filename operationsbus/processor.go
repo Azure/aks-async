@@ -14,6 +14,7 @@ func CreateProcessor(
 	serviceBusReceiver sb.ReceiverInterface,
 	matcher *Matcher,
 	operationController OperationController,
+	entityController EntityController,
 	logger *slog.Logger,
 	customHandler shuttle.HandlerFunc,
 	processorOptions *shuttle.ProcessorOptions,
@@ -31,7 +32,7 @@ func CreateProcessor(
 	// Define the default handler chain
 	// Use the default handler if a custom handler is not provided
 	if customHandler == nil {
-		customHandler = DefaultHandlers(serviceBusReceiver, matcher, operationController, logger, hooks)
+		customHandler = DefaultHandlers(serviceBusReceiver, matcher, operationController, entityController, logger, hooks)
 	}
 
 	if processorOptions == nil {
