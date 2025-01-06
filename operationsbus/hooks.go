@@ -3,7 +3,7 @@ package operationsbus
 import (
 	"context"
 
-	"github.com/Azure/aks-middleware/ctxlogger"
+	"github.com/Azure/aks-middleware/grpc/server/ctxlogger"
 )
 
 type BaseOperationHooksInterface interface {

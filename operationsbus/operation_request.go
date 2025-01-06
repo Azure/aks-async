@@ -8,7 +8,7 @@ import (
 	"reflect"
 
 	sb "github.com/Azure/aks-async/servicebus"
-	"github.com/Azure/aks-middleware/ctxlogger"
+	"github.com/Azure/aks-middleware/grpc/server/ctxlogger"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
