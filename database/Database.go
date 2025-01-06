@@ -7,7 +7,7 @@ import (
 	"fmt"
 	log "log/slog"
 
-	"github.com/Azure/aks-middleware/ctxlogger"
+	"github.com/Azure/aks-middleware/grpc/server/ctxlogger"
 	"github.com/microsoft/go-mssqldb/azuread"
 )
 
