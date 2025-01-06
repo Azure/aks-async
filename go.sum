@@ -4,8 +4,8 @@ buf.build/gen/go/service-hub/loggable/protocolbuffers/go v1.32.0-20231012175355-
 buf.build/gen/go/service-hub/loggable/protocolbuffers/go v1.32.0-20231012175355-a349f6324a7e.1/go.mod h1:/iCxaXrItOBYH3A97v3qhTiCUWGQZSj4e1KaROGPEgk=
 github.com/Azure/OperationContainer/api v0.0.0-20241226212846-d9c02a4add84 h1:Ltg6cGDSImjFZD98i5sut+RFbUZsslBx31IEVYbWuB8=
 github.com/Azure/OperationContainer/api v0.0.0-20241226212846-d9c02a4add84/go.mod h1:PTVAIP48QIQq8kIF98X94GITio5u+hDdRRxczFDG7SA=
-github.com/Azure/aks-middleware v0.0.28-test3 h1:LI/Bm6DREGuHtE960CL7Xb9yFq3y+BpMFo6zZD67T3E=
-github.com/Azure/aks-middleware v0.0.28-test3/go.mod h1:02sVX8v7HPSNuVL3NFBVwmRxyzriyWMU7IwJeDmkZvM=
+github.com/Azure/aks-middleware v0.0.30 h1:WhZwYwDYkA0hgCwywYZgR3GyQeNGri6rucC/uJrvREM=
+github.com/Azure/aks-middleware v0.0.30/go.mod h1:02sVX8v7HPSNuVL3NFBVwmRxyzriyWMU7IwJeDmkZvM=
 github.com/Azure/azure-sdk-for-go/sdk/azcore v1.12.0 h1:1nGuui+4POelzDwI7RG56yfQJHCnKvwfMoU7VsEp+Zg=
 github.com/Azure/azure-sdk-for-go/sdk/azcore v1.12.0/go.mod h1:99EvauvlcJ1U06amZiksfYz/3aFGyIhWGHVyiZXtBAI=
 github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.7.0 h1:tfLQ34V6F7tVSwoTf/4lH5sE0o6eCJuNDTmH09nDpbc=

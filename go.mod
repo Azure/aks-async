@@ -4,7 +4,7 @@ go 1.23.2
 
 require (
 	github.com/Azure/OperationContainer/api v0.0.0-20241226212846-d9c02a4add84
-	github.com/Azure/aks-middleware v0.0.28-test3
+	github.com/Azure/aks-middleware v0.0.30
 	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.12.0
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.7.0
 	github.com/Azure/azure-sdk-for-go/sdk/messaging/azservicebus v1.7.1
