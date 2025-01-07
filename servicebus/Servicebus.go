@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 
-	"github.com/Azure/aks-middleware/ctxlogger"
+	"github.com/Azure/aks-middleware/grpc/server/ctxlogger"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/Azure/azure-sdk-for-go/sdk/messaging/azservicebus"

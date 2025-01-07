@@ -9,7 +9,7 @@ import (
 
 	oc "github.com/Azure/OperationContainer/api/v1"
 	sb "github.com/Azure/aks-async/servicebus"
-	"github.com/Azure/aks-middleware/ctxlogger"
+	"github.com/Azure/aks-middleware/grpc/server/ctxlogger"
 	"github.com/Azure/azure-sdk-for-go/sdk/messaging/azservicebus"
 	"github.com/Azure/go-shuttle/v2"
 )
