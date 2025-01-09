@@ -8,7 +8,7 @@ import (
 
 	sb "github.com/Azure/aks-async/servicebus"
 
-	"github.com/Azure/aks-middleware/ctxlogger"
+	"github.com/Azure/aks-middleware/grpc/server/ctxlogger"
 	"github.com/Azure/azure-sdk-for-go/sdk/messaging/azservicebus"
 	"github.com/Azure/go-shuttle/v2"
 )
