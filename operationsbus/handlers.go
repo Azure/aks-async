@@ -357,10 +357,14 @@ func OperationHandler(matcher *Matcher, hooks []BaseOperationHooksInterface, ent
 			return &RetryError{Message: "Error setting operation In Progress"}
 		}
 
-		entity, err := entityController.GetEntity(ctx, body)
-		if err != nil {
-			logger.Error("Something went wrong getting the entity.")
-			return &RetryError{Message: "Error getting operationEntity"}
+		//TODO(mheberling): Remove this after chatting usage is adopted in Guardrails
+		var entity Entity
+		if entityController != nil {
+			entity, err = entityController.GetEntity(ctx, body)
+			if err != nil {
+				logger.Error("Something went wrong getting the entity.")
+				return &RetryError{Message: "Error getting operationEntity"}
+			}
 		}
 
 		// 4. Guard against concurrency.
