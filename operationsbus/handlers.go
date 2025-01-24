@@ -188,7 +188,7 @@ func NewOperationContainerHandler(errHandler ErrorHandlerFunc, operationContaine
 		}
 
 		var updateOperationStatusRequest *oc.UpdateOperationStatusRequest
-		// If the operation is picked up immediately from the service bus, while the operationController is still putting the
+		// If the operation is picked up immediately from the service bus, while the operationContainer is still putting the
 		// operation into the hcp and operations databases, this step might fail if both databases have not been updated.
 		// Allowing a couple of retries before fully failing the operation due to this error.
 		opInProgress := false
@@ -210,7 +210,7 @@ func NewOperationContainerHandler(errHandler ErrorHandlerFunc, operationContaine
 
 		if !opInProgress {
 			logger.Error("Operation was not able to be put in progress.")
-			return nil
+			return err
 		}
 
 		err = errHandler.Handle(ctx, settler, message)
@@ -228,40 +228,37 @@ func NewOperationContainerHandler(errHandler ErrorHandlerFunc, operationContaine
 				}
 				_, err = operationContainer.UpdateOperationStatus(ctx, updateOperationStatusRequest)
 				if err != nil {
-					logger.Error("OperationContainerHandler: Something went wrong setting the operation as Cancelled.")
-					return nil
+					logger.Error("OperationContainerHandler: Something went wrong setting the operation as Cancelled" + err.Error())
+					return err
 				}
 			case *RetryError:
 				// Set the operation as Pending
 				logger.Info("OperationContainerHandler: Setting operation as Pending.")
-				// err = operationController.OperationPending(ctx, body.OperationId)
 				updateOperationStatusRequest = &oc.UpdateOperationStatusRequest{
 					OperationId: body.OperationId,
 					GoalState:   oc.GoalState_PENDING,
 				}
 				_, err = operationContainer.UpdateOperationStatus(ctx, updateOperationStatusRequest)
 				if err != nil {
-					logger.Error("OperationContainerHandler: Something went wrong setting the operation as Pending.")
-					return nil
+					logger.Error("OperationContainerHandler: Something went wrong setting the operation as Pending:" + err.Error())
+					return err
 				}
 			default:
 				logger.Info("OperationContainerHandler: Error type not recognized. Operation status not changed.")
 			}
 		} else {
 			logger.Info("Setting Operation as Successful.")
-			// err = operationController.OperationCompleted(ctx, body.OperationId)
 			updateOperationStatusRequest = &oc.UpdateOperationStatusRequest{
 				OperationId: body.OperationId,
 				GoalState:   oc.GoalState_COMPLETED,
 			}
 			_, err = operationContainer.UpdateOperationStatus(ctx, updateOperationStatusRequest)
 			if err != nil {
-				logger.Error("OperationContainerHandler: Something went wrong setting the operation as Completed.")
-				return nil
+				logger.Error("OperationContainerHandler: Something went wrong setting the operation as Completed: " + err.Error())
+				return err
 			}
 		}
 
-		// We only pass along the error of the operation.
 		return err
 	}
 }
@@ -303,7 +300,7 @@ func nonRetryOperationError(ctx context.Context, settler shuttle.MessageSettler,
 	}
 
 	// Settle message
-	settleMessage(ctx, settler, message, nil)
+	deadLetterMessage(ctx, settler, message, nil)
 
 	return nil
 }
@@ -395,5 +392,15 @@ func settleMessage(ctx context.Context, settler shuttle.MessageSettler, message 
 	err := settler.CompleteMessage(ctx, message, options)
 	if err != nil {
 		logger.Error("Unable to settle message.")
+	}
+}
+
+func deadLetterMessage(ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage, options *azservicebus.DeadLetterOptions) {
+	logger := ctxlogger.GetLogger(ctx)
+	logger.Info("DeadLettering message.")
+
+	err := settler.DeadLetterMessage(ctx, message, options)
+	if err != nil {
+		logger.Error("Unable to deadletter message.")
 	}
 }
