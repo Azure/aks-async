@@ -22,6 +22,12 @@ func (m *Matcher) Register(key string, value ApiOperation) {
 	m.Types[key] = reflect.TypeOf(value).Elem()
 }
 
+// Set adds a key-value pair to the map
+// Ex: matcher.Register("LongRunning", &LongRunning{})
+func (m *Matcher) RegisterEntity(key string, value Entity) {
+	m.Types[key] = reflect.TypeOf(value).Elem()
+}
+
 // Get retrieves a value from the map by its key
 func (m *Matcher) Get(key string) (reflect.Type, bool) {
 	value, exists := m.Types[key]
@@ -29,7 +35,7 @@ func (m *Matcher) Get(key string) (reflect.Type, bool) {
 }
 
 // This will create an empty instance of the type, with which you can then call op.Init() and initialize any info you need.
-func (m *Matcher) CreateInstance(key string) (ApiOperation, error) {
+func (m *Matcher) CreateOperationInstance(key string) (ApiOperation, error) {
 	t, exists := m.Types[key]
 	if !exists {
 		return nil, errors.New("The ApiOperation doesn't exist in the map: " + key)
@@ -39,8 +45,19 @@ func (m *Matcher) CreateInstance(key string) (ApiOperation, error) {
 	return instance, nil
 }
 
+// This will create an empty instance of the type, with which you can then call op.Init() and initialize any info you need.
+func (m *Matcher) CreateEntityInstance(key string) (Entity, error) {
+	t, exists := m.Types[key]
+	if !exists {
+		return nil, errors.New("The ApiOperation doesn't exist in the map: " + key)
+	}
+
+	instance := reflect.New(t).Interface().(Entity)
+	return instance, nil
+}
+
 func (m *Matcher) CreateHookedInstace(key string, hooks []BaseOperationHooksInterface) (*HookedApiOperation, error) {
-	operation, err := m.CreateInstance(key)
+	operation, err := m.CreateOperationInstance(key)
 	if err != nil {
 		return nil, err
 	}

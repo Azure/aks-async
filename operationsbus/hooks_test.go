@@ -76,7 +76,7 @@ func TestHooks(t *testing.T) {
 	}
 
 	// Testing with a regular instance
-	operation, err := matcher.CreateInstance(body.OperationName)
+	operation, err := matcher.CreateOperationInstance(body.OperationName)
 	if err != nil {
 		t.Fatalf("Error creating instance of operation: " + err.Error())
 	}
