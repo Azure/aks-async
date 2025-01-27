@@ -25,7 +25,7 @@ func TestMatcher(t *testing.T) {
 	}
 
 	// Retrieve an instance of the type associated with the key operation
-	instance, err := matcher.CreateInstance(operation)
+	instance, err := matcher.CreateOperationInstance(operation)
 	if err != nil {
 		fmt.Println("Type not found")
 		return
