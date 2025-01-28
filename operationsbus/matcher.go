@@ -5,14 +5,18 @@ import (
 	"reflect"
 )
 
+type EntityFactoryFunc func(string) Entity
+
 // The matcher is utilized in order to keep track of the name and type of each operation. This is required because we only send the OperationRequest through the service bus, but we utilize the name shown in that struct in order to create an instance of the right operation type (e.g. LongRunning) and Run with the correct logic.
 type Matcher struct {
-	Types map[string]reflect.Type
+	Types          map[string]reflect.Type
+	EntityCreators map[string]EntityFactoryFunc
 }
 
 func NewMatcher() *Matcher {
 	return &Matcher{
-		Types: make(map[string]reflect.Type),
+		Types:          make(map[string]reflect.Type),
+		EntityCreators: make(map[string]EntityFactoryFunc),
 	}
 }
 
@@ -24,8 +28,8 @@ func (m *Matcher) Register(key string, value ApiOperation) {
 
 // Set adds a key-value pair to the map
 // Ex: matcher.Register("LongRunning", &LongRunning{})
-func (m *Matcher) RegisterEntity(key string, value Entity) {
-	m.Types[key] = reflect.TypeOf(value).Elem()
+func (m *Matcher) RegisterEntity(key string, value EntityFactoryFunc) {
+	m.EntityCreators[key] = value
 }
 
 // Get retrieves a value from the map by its key
@@ -45,15 +49,24 @@ func (m *Matcher) CreateOperationInstance(key string) (ApiOperation, error) {
 	return instance, nil
 }
 
-// This will create an empty instance of the type, with which you can then call op.Init() and initialize any info you need.
-func (m *Matcher) CreateEntityInstance(key string) (Entity, error) {
-	t, exists := m.Types[key]
-	if !exists {
-		return nil, errors.New("The ApiOperation doesn't exist in the map: " + key)
+func (m *Matcher) CreateEntityInstance(key string, lastOperationId string) (Entity, error) {
+
+	if lastOperationId == "" {
+		return nil, errors.New("lastOperationId is empty!")
 	}
 
-	instance := reflect.New(t).Interface().(Entity)
-	return instance, nil
+	var entity Entity
+	if f, ok := m.EntityCreators[key]; ok {
+		entity = f(lastOperationId)
+	} else {
+		return nil, errors.New("Something went wrong getting the value of key: " + key)
+	}
+
+	if entity == nil {
+		return nil, errors.New("Entity was not created successfully!")
+	}
+
+	return entity, nil
 }
 
 func (m *Matcher) CreateHookedInstace(key string, hooks []BaseOperationHooksInterface) (*HookedApiOperation, error) {
