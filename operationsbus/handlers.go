@@ -196,7 +196,7 @@ func NewOperationContainerHandler(errHandler ErrorHandlerFunc, operationContaine
 			// err = operationContainer.OperationInProgress(ctx, body.OperationId)
 			updateOperationStatusRequest = &oc.UpdateOperationStatusRequest{
 				OperationId: body.OperationId,
-				GoalState:   oc.GoalState_IN_PROGRESS,
+				Status:      oc.Status_IN_PROGRESS,
 			}
 			_, err = operationContainer.UpdateOperationStatus(ctx, updateOperationStatusRequest)
 			if err != nil {
@@ -224,7 +224,7 @@ func NewOperationContainerHandler(errHandler ErrorHandlerFunc, operationContaine
 				// err = operationContainerOperationCancel(ctx, body.OperationId)
 				updateOperationStatusRequest = &oc.UpdateOperationStatusRequest{
 					OperationId: body.OperationId,
-					GoalState:   oc.GoalState_CANCELLED,
+					Status:      oc.Status_CANCELLED,
 				}
 				_, err = operationContainer.UpdateOperationStatus(ctx, updateOperationStatusRequest)
 				if err != nil {
@@ -236,7 +236,7 @@ func NewOperationContainerHandler(errHandler ErrorHandlerFunc, operationContaine
 				logger.Info("OperationContainerHandler: Setting operation as Pending.")
 				updateOperationStatusRequest = &oc.UpdateOperationStatusRequest{
 					OperationId: body.OperationId,
-					GoalState:   oc.GoalState_PENDING,
+					Status:      oc.Status_PENDING,
 				}
 				_, err = operationContainer.UpdateOperationStatus(ctx, updateOperationStatusRequest)
 				if err != nil {
@@ -250,7 +250,7 @@ func NewOperationContainerHandler(errHandler ErrorHandlerFunc, operationContaine
 			logger.Info("Setting Operation as Successful.")
 			updateOperationStatusRequest = &oc.UpdateOperationStatusRequest{
 				OperationId: body.OperationId,
-				GoalState:   oc.GoalState_COMPLETED,
+				Status:      oc.Status_COMPLETED,
 			}
 			_, err = operationContainer.UpdateOperationStatus(ctx, updateOperationStatusRequest)
 			if err != nil {
