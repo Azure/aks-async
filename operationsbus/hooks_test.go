@@ -12,17 +12,17 @@ type RunOnlyHooks struct {
 	HookedApiOperation
 }
 
-func (h *RunOnlyHooks) BeforeRun(ctx context.Context, op *ApiOperation) error {
+func (h *RunOnlyHooks) BeforeRun(ctx context.Context, op ApiOperation) error {
 	fmt.Println("This is the before internal run hook!")
-	if longOp, ok := (*op).(*LongRunningOperation); ok {
+	if longOp, ok := (op).(*LongRunningOperation); ok {
 		longOp.num += 1
 	}
 	return nil
 }
 
-func (h *RunOnlyHooks) AfterRun(ctx context.Context, op *ApiOperation, err error) error {
+func (h *RunOnlyHooks) AfterRun(ctx context.Context, op ApiOperation, err error) error {
 	fmt.Println("This is the after internal run hook!")
-	if longOp, ok := (*op).(*LongRunningOperation); ok {
+	if longOp, ok := (op).(*LongRunningOperation); ok {
 		longOp.num += 1
 	}
 	return nil
@@ -84,7 +84,7 @@ func TestHooks(t *testing.T) {
 	runOnlyHooks := &RunOnlyHooks{}
 	hooksSlice := []BaseOperationHooksInterface{runOnlyHooks}
 	hOperation := &HookedApiOperation{
-		Operation:      &operation,
+		Operation:      operation,
 		OperationHooks: hooksSlice,
 	}
 
@@ -95,7 +95,7 @@ func TestHooks(t *testing.T) {
 
 	_ = hOperation.GuardConcurrency(ctx, nil)
 	_ = hOperation.Run(ctx)
-	if longOp, ok := (*hOperation.Operation).(*LongRunningOperation); ok {
+	if longOp, ok := (hOperation.Operation).(*LongRunningOperation); ok {
 		if longOp.num == 3 {
 			t.Log("Hooks did ran successfully.")
 		} else {
@@ -123,7 +123,7 @@ func TestHooks(t *testing.T) {
 
 	_ = hOperation.GuardConcurrency(ctx, nil)
 	_ = hOperation.Run(ctx)
-	if longOp, ok := (*hOperation.Operation).(*LongRunningOperation); ok {
+	if longOp, ok := (hOperation.Operation).(*LongRunningOperation); ok {
 		if longOp.num == 3 {
 			t.Log("Hooks did ran successfully.")
 		} else {
