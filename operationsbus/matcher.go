@@ -80,7 +80,7 @@ func (m *Matcher) CreateHookedInstace(key string, hooks []BaseOperationHooksInte
 	}
 
 	hOperation := &HookedApiOperation{
-		Operation:      &operation,
+		Operation:      operation,
 		OperationHooks: hooks,
 	}
 
