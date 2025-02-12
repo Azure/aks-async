@@ -8,7 +8,7 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/messaging/azservicebus"
 )
 
-// TODO(mheberling): In the future, support for multiple queues of messages might also be required.
+// In the future, support for multiple queues of messages might also be required.
 type FakeServiceBusClient struct {
 	messages [][]byte
 	mu       sync.Mutex

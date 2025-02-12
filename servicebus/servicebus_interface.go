@@ -17,6 +17,6 @@ type SenderInterface interface {
 }
 
 type ReceiverInterface interface {
-	ReceiveMessage(ctx context.Context) ([]byte, error)
+	ReceiveMessage(ctx context.Context, maxMessages int, options *azservicebus.ReceiveMessagesOptions) ([]*azservicebus.ReceivedMessage, error)
 	GetAzureReceiver() (*azservicebus.Receiver, error)
 }
