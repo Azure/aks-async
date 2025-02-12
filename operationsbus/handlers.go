@@ -14,6 +14,10 @@ import (
 	"github.com/Azure/go-shuttle/v2"
 )
 
+// Handlers are used to modify the behavior of the processor, allowing you to process operations in an order set by the user
+// and with logic set by the user. This package provides a set of default handlers that the user can use, utilizing all of
+// the interfaces provided in this repository.
+
 // Default errors for the error handler.
 type RetryError struct {
 	Message string

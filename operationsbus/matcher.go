@@ -7,7 +7,11 @@ import (
 
 type EntityFactoryFunc func(string) Entity
 
-// The matcher is utilized in order to keep track of the name and type of each operation. This is required because we only send the OperationRequest through the service bus, but we utilize the name shown in that struct in order to create an instance of the right operation type (e.g. LongRunning) and Run with the correct logic.
+// The matcher is utilized in order to keep track of the name and type of each operation.
+// This is required because we only send the OperationRequest through the service bus,
+// but we utilize the name in that struct to create an instance of the right operation
+// type (e.g. LongRunning) and Run with the correct logic. The matcher can also be used
+// to create the Entity based on the name of the operation by using a stored EntityFactoryFunc.
 type Matcher struct {
 	Types          map[string]reflect.Type
 	EntityCreators map[string]EntityFactoryFunc
@@ -32,13 +36,14 @@ func (m *Matcher) RegisterEntity(key string, value EntityFactoryFunc) {
 	m.EntityCreators[key] = value
 }
 
-// Get retrieves a value from the map by its key
+// Get retrieves a type from the map by its key.
 func (m *Matcher) Get(key string) (reflect.Type, bool) {
 	value, exists := m.Types[key]
 	return value, exists
 }
 
-// This will create an empty instance of the type, with which you can then call op.Init() and initialize any info you need.
+// This will create an empty instance of the type, with which you can then call op.Init()
+// and initialize any info you need.
 func (m *Matcher) CreateOperationInstance(key string) (ApiOperation, error) {
 	t, exists := m.Types[key]
 	if !exists {
@@ -49,6 +54,8 @@ func (m *Matcher) CreateOperationInstance(key string) (ApiOperation, error) {
 	return instance, nil
 }
 
+// This will create an Entity using the EntityFactoryFunc with the lastOperationId by matching
+// with the key passed in.
 func (m *Matcher) CreateEntityInstance(key string, lastOperationId string) (Entity, error) {
 
 	if lastOperationId == "" {
@@ -69,6 +76,7 @@ func (m *Matcher) CreateEntityInstance(key string, lastOperationId string) (Enti
 	return entity, nil
 }
 
+// Creates an instance of the operation with hooks enabled.
 func (m *Matcher) CreateHookedInstace(key string, hooks []BaseOperationHooksInterface) (*HookedApiOperation, error) {
 	operation, err := m.CreateOperationInstance(key)
 	if err != nil {

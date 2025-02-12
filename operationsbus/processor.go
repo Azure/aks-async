@@ -10,7 +10,7 @@ import (
 	"github.com/Azure/go-shuttle/v2"
 )
 
-// The processor will be utilized to "process" all the operations by receiving the message, guarding against concurrency, running the operation, and updating the right database status.
+// The processor will be used to process all the operations using the default values or with handlers set by the user.
 func CreateProcessor(
 	serviceBusReceiver sb.ReceiverInterface,
 	matcher *Matcher,
@@ -27,7 +27,7 @@ func CreateProcessor(
 	}
 
 	if matcher == nil {
-		return nil, errors.New("No matched received.")
+		return nil, errors.New("No matcher received.")
 	}
 
 	// Define the default handler chain
@@ -36,6 +36,7 @@ func CreateProcessor(
 		customHandler = DefaultHandlers(serviceBusReceiver, matcher, operationContainer, entityController, logger, hooks)
 	}
 
+	// Set default processor options.
 	if processorOptions == nil {
 		processorOptions = &shuttle.ProcessorOptions{
 			MaxConcurrency:  1,

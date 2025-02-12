@@ -197,3 +197,12 @@ if err != nil {
     fmt.Println("Something happened: " + err.Error())
 }
 ```
+
+## Util
+
+### Mock
+
+Run the following to create mocks of an interface, with a sample of the service bus interface:
+```bash
+mockgen -source=servicebus/servicebus_interface.go -destination=mocks/mock_service_bus.go -package=mocks
+```
