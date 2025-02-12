@@ -6,6 +6,8 @@ import (
 	"github.com/Azure/aks-middleware/grpc/server/ctxlogger"
 )
 
+// Hooks are used to extend the usability of the operations, and to let the user modify the behavior
+// of the different methods we enforce in case they want to change the inputs or outputs.
 type BaseOperationHooksInterface interface {
 	BeforeInitOperation(ctx context.Context, req OperationRequest) *AsyncError
 	AfterInitOperation(ctx context.Context, op ApiOperation, req OperationRequest, asyncError *AsyncError) *AsyncError
@@ -22,6 +24,9 @@ type HookedApiOperation struct {
 	OperationHooks []BaseOperationHooksInterface
 }
 
+// HookedApiOperation implements the methods of the BaseOperationHooksInterface to allow the user to
+// implement only the hooks they need (e.g. only implement the Before/AfterRun hooks),
+// instead of having to implement all of them.
 func (h *HookedApiOperation) BeforeInitOperation(ctx context.Context, req OperationRequest) *AsyncError {
 	return nil
 }
