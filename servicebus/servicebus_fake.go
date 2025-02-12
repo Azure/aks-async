@@ -53,7 +53,7 @@ type FakeReceiver struct {
 	client *FakeServiceBusClient
 }
 
-func (r *FakeReceiver) ReceiveMessage(_ context.Context) ([]byte, error) {
+func (r *FakeReceiver) ReceiveMessage(_ context.Context, maxMessages int, _ *azservicebus.ReceiveMessagesOptions) ([]*azservicebus.ReceivedMessage, error) {
 	r.client.mu.Lock()
 	defer r.client.mu.Unlock()
 
@@ -61,9 +61,25 @@ func (r *FakeReceiver) ReceiveMessage(_ context.Context) ([]byte, error) {
 		return nil, errors.New("No messages available.")
 	}
 
-	message := r.client.messages[0]
-	r.client.messages = r.client.messages[1:]
-	return message, nil
+	// Determine the number of messages to return
+	numMessages := maxMessages
+	if len(r.client.messages) < maxMessages {
+		numMessages = len(r.client.messages)
+	}
+
+	rawMessages := r.client.messages[:numMessages]
+	r.client.messages = r.client.messages[numMessages:]
+
+	// Package each message into azservicebus.ReceivedMessage
+	var receivedMessages []*azservicebus.ReceivedMessage
+	for _, rawMessage := range rawMessages {
+		receivedMessage := &azservicebus.ReceivedMessage{
+			Body: rawMessage,
+		}
+		receivedMessages = append(receivedMessages, receivedMessage)
+	}
+
+	return receivedMessages, nil
 }
 
 func (s *FakeReceiver) GetAzureReceiver() (*azservicebus.Receiver, error) {
