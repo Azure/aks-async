@@ -9,116 +9,105 @@ import (
 	"github.com/Azure/aks-async/runtime/entity"
 	"github.com/Azure/aks-async/runtime/errors"
 	"github.com/Azure/aks-async/runtime/operation"
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 )
 
 func TestMatcher(t *testing.T) {
-	matcher := NewMatcher()
-
-	operationName := "LongRunning"
-	matcher.Register(operationName, &LongRunning{})
-
-	retrieved, exists := matcher.Get(operationName)
-	if !exists {
-		t.Fatalf("Operation %s should exist in the matcher, instead got: %t", operationName, exists)
-	}
-
-	longRunningOp := &LongRunning{}
-	longRunningOpType := reflect.TypeOf(longRunningOp).Elem()
-	if retrieved != longRunningOpType {
-		t.Fatalf("Expected %s. Instead got: %s", longRunningOpType, retrieved)
-	}
-
-	// Retrieve an instance of the type associated with the key operation
-	instance, err := matcher.CreateOperationInstance(operationName)
-	if err != nil {
-		t.Fatalf("Type not found")
-	}
-
-	// Check if the created element is of the correct type.
-	if reflect.TypeOf(instance).Elem() != longRunningOpType {
-		t.Fatalf("The created instance is not of the correct type")
-	}
-
-	ctx := context.Background()
-	_, _ = instance.InitOperation(ctx, operation.OperationRequest{})
-	_ = instance.Run(ctx)
-	if longOp, ok := instance.(*LongRunning); ok {
-		if longOp.num != 2 {
-			t.Fatalf("Run did not complete successfully: %d", longOp.num)
-		}
-	} else {
-		t.Fatalf("Something went wrong casting the operation to LongRunning type.")
-	}
+	RegisterFailHandler(Fail)
+	RunSpecs(t, "Matcher Suite")
 }
 
-func TestMatcher_RegisterAndGetEntity(t *testing.T) {
-	matcher := NewMatcher()
+var _ = Describe("Matcher", func() {
+	var (
+		matcher           *Matcher
+		operationName     string
+		longRunningOp     *LongRunning
+		longRunningOpType reflect.Type
+		ctx               context.Context
+	)
 
-	entityKey := "TestEntity"
-	lastOperationId := "1"
-	matcher.RegisterEntity(entityKey, func(latestOperationId string) entity.Entity {
-		return &TestEntity{latestOperationId: latestOperationId}
+	BeforeEach(func() {
+		matcher = NewMatcher()
+		operationName = "LongRunning"
+		longRunningOp = &LongRunning{}
+		longRunningOpType = reflect.TypeOf(longRunningOp).Elem()
+		ctx = context.Background()
 	})
 
-	// Check if the entity creator is registered correctly
-	if _, exists := matcher.EntityCreators[entityKey]; !exists {
-		t.Fatalf("Entity creator for key %s should exist in the matcher", entityKey)
-	}
+	Describe("Register and Get Operation", func() {
+		It("should register and retrieve the operation type", func() {
+			matcher.Register(operationName, longRunningOp)
 
-	// Create an instance of the entity using the registered creator
-	entityInstance := matcher.EntityCreators[entityKey]
-
-	var e entity.Entity
-	if f, ok := matcher.EntityCreators[entityKey]; ok {
-		e = f(lastOperationId)
-	} else {
-		t.Fatalf("Expected entity instance of type *TestEntity. Instead got: %T", entityInstance)
-	}
-
-	if e.(*TestEntity).latestOperationId != "1" {
-		t.Fatalf("Expected entity name to be %s. Instead got: %s", lastOperationId, e.(*TestEntity).latestOperationId)
-	}
-}
-
-func TestMatcher_CreateEntityInstance(t *testing.T) {
-	matcher := NewMatcher()
-
-	entityKey := "TestEntity"
-	lastOperationId := "1"
-	matcher.RegisterEntity(entityKey, func(latestOperationId string) entity.Entity {
-		return &TestEntity{latestOperationId: latestOperationId}
+			retrieved, exists := matcher.Get(operationName)
+			Expect(exists).To(BeTrue(), fmt.Sprintf("Operation %s should exist in the matcher", operationName))
+			Expect(retrieved).To(Equal(longRunningOpType), fmt.Sprintf("Expected %s. Instead got: %s", longRunningOpType, retrieved))
+		})
 	})
 
-	// Create an instance of the entity using the matcher method
-	entityInstance, err := matcher.CreateEntityInstance(entityKey, lastOperationId)
-	if err != nil {
-		t.Fatalf("Expected no error. Instead got: %v", err)
-	}
-	if testEntityInstance, ok := entityInstance.(*TestEntity); !ok {
-		t.Fatalf("Expected entity instance of type *TestEntity. Instead got: %T", entityInstance)
-	} else {
-		if testEntityInstance.latestOperationId != lastOperationId {
-			t.Fatalf("lastestOperationId of entity doesn't match what was used to create the instance: " + lastOperationId)
-		}
-	}
-	if _, ok := entityInstance.(*TestEntity); !ok {
-		t.Fatalf("Expected entity instance of type *TestEntity. Instead got: %T", entityInstance)
-	}
+	Describe("Create Operation Instance", func() {
+		It("should create an instance of the registered operation type", func() {
+			matcher.Register(operationName, longRunningOp)
 
-	if v := entityInstance.GetLatestOperationID(); v != lastOperationId {
-		t.Fatalf("Expected latestOperationId of entity to match lastOperationId: " + lastOperationId)
-	}
-}
+			instance, err := matcher.CreateOperationInstance(operationName)
+			Expect(err).NotTo(HaveOccurred(), "Type not found")
+			Expect(reflect.TypeOf(instance).Elem()).To(Equal(longRunningOpType), "The created instance is not of the correct type")
 
-func TestMatcher_CreateEntityInstance_NonExistentKey(t *testing.T) {
-	matcher := NewMatcher()
+			_, _ = instance.InitOperation(ctx, operation.OperationRequest{})
+			_ = instance.Run(ctx)
+			if longOp, ok := instance.(*LongRunning); ok {
+				Expect(longOp.num).To(Equal(2), "Run did not complete successfully")
+			} else {
+				Fail("Something went wrong casting the operation to LongRunning type.")
+			}
+		})
+	})
 
-	entityKey := "NonExistentEntity"
-	_, err := matcher.CreateEntityInstance(entityKey, "1")
-	if err == nil {
-		t.Fatalf("Should not return function of non-existing entity.")
-	}
-}
+	Describe("Register and Get Entity", func() {
+		It("should register and retrieve the entity creator", func() {
+			entityKey := "TestEntity"
+			lastOperationId := "1"
+			matcher.RegisterEntity(entityKey, func(latestOperationId string) entity.Entity {
+				return &TestEntity{latestOperationId: latestOperationId}
+			})
+
+			Expect(matcher.EntityCreators).To(HaveKey(entityKey), fmt.Sprintf("Entity creator for key %s should exist in the matcher", entityKey))
+
+			entityInstance := matcher.EntityCreators[entityKey]
+			var e entity.Entity
+			if f, ok := matcher.EntityCreators[entityKey]; ok {
+				e = f(lastOperationId)
+			} else {
+				Fail(fmt.Sprintf("Expected entity instance of type *TestEntity. Instead got: %T", entityInstance))
+			}
+
+			Expect(e.(*TestEntity).latestOperationId).To(Equal(lastOperationId), fmt.Sprintf("Expected entity name to be %s. Instead got: %s", lastOperationId, e.(*TestEntity).latestOperationId))
+		})
+	})
+
+	Describe("Create Entity Instance", func() {
+		It("should create an instance of the registered entity type", func() {
+			entityKey := "TestEntity"
+			lastOperationId := "1"
+			matcher.RegisterEntity(entityKey, func(latestOperationId string) entity.Entity {
+				return &TestEntity{latestOperationId: latestOperationId}
+			})
+
+			entityInstance, err := matcher.CreateEntityInstance(entityKey, lastOperationId)
+			Expect(err).NotTo(HaveOccurred(), "Expected no error")
+			Expect(entityInstance).To(BeAssignableToTypeOf(&TestEntity{}), fmt.Sprintf("Expected entity instance of type *TestEntity. Instead got: %T", entityInstance))
+			Expect(entityInstance.(*TestEntity).latestOperationId).To(Equal(lastOperationId), "lastestOperationId of entity doesn't match what was used to create the instance")
+
+			Expect(entityInstance.GetLatestOperationID()).To(Equal(lastOperationId), "Expected latestOperationId of entity to match lastOperationId")
+		})
+
+		It("should return an error for non-existent entity key", func() {
+			entityKey := "NonExistentEntity"
+			_, err := matcher.CreateEntityInstance(entityKey, "1")
+			Expect(err).To(HaveOccurred(), "Should not return function of non-existing entity.")
+		})
+	})
+})
 
 // Example implementatin of entity.
 type TestEntity struct {
