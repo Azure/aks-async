@@ -2,13 +2,12 @@ package hooks
 
 import (
 	"context"
-	// "encoding/json"
-
 	"testing"
 
 	"github.com/Azure/aks-async/runtime/entity"
-	// "github.com/Azure/aks-async/runtime/matcher"
 	"github.com/Azure/aks-async/runtime/operation"
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 )
 
 // Sample hook
@@ -56,81 +55,46 @@ func (l *LongRunningOperation) GetOperationRequest() *operation.OperationRequest
 	return &l.opReq
 }
 
-func TestHooks(t *testing.T) {
-	ctx := context.Background()
+var _ = Describe("Hooks", func() {
+	var (
+		ctx               context.Context
+		opRequest         *operation.OperationRequest
+		operationInstance *LongRunningOperation
+		runOnlyHooks      *RunOnlyHooks
+		hooksSlice        []BaseOperationHooksInterface
+		hOperation        *HookedApiOperation
+		err               error
+	)
 
-	// matcher := matcher.NewMatcher()
-	// lro := &LongRunningOperation{}
-	// matcher.Register("LongRunningOperation", lro)
-
-	opRequest := operation.NewOperationRequest("LongRunningOperation", "v0.0.1", "1", "1", "Cluster", 0, nil, nil, "", nil)
-	operationInstance := &LongRunningOperation{}
-	// marshalledOperation, err := json.Marshal(opRequest)
-	// if err != nil {
-	// 	t.Fatalf("Error marshalling operation.")
-	// }
-	//
-	// var body operation.OperationRequest
-	// err = json.Unmarshal(marshalledOperation, &body)
-	// if err != nil {
-	// 	t.Fatalf("Error unmarshalling operation: " + err.Error())
-	// }
-	//
-	// // Testing with a regular instance
-	// operationInstance, err := matcher.CreateOperationInstance(body.OperationName)
-	// if err != nil {
-	// 	t.Fatalf("Error creating instance of operation: " + err.Error())
-	// }
-
-	runOnlyHooks := &RunOnlyHooks{}
-	hooksSlice := []BaseOperationHooksInterface{runOnlyHooks}
-	hOperation := &HookedApiOperation{
-		OperationInstance: operationInstance,
-		OperationHooks:    hooksSlice,
-	}
-
-	_, err := hOperation.InitOperation(ctx, *opRequest)
-	if err != nil {
-		t.Fatalf("Error initializing operation: " + err.Error())
-	}
-
-	_ = hOperation.GuardConcurrency(ctx, nil)
-	_ = hOperation.Run(ctx)
-	if longOp, ok := (hOperation.OperationInstance).(*LongRunningOperation); ok {
-		if longOp.num == 3 {
-			t.Log("Hooks did ran successfully.")
-		} else {
-			t.Fatalf("Hooks did not run successfully.")
+	BeforeEach(func() {
+		ctx = context.Background()
+		opRequest = operation.NewOperationRequest("LongRunningOperation", "v0.0.1", "1", "1", "Cluster", 0, nil, nil, "", nil)
+		operationInstance = &LongRunningOperation{}
+		runOnlyHooks = &RunOnlyHooks{}
+		hooksSlice = []BaseOperationHooksInterface{runOnlyHooks}
+		hOperation = &HookedApiOperation{
+			OperationInstance: operationInstance,
+			OperationHooks:    hooksSlice,
 		}
-	} else {
-		t.Fatalf("Something went wrong casting the operation to LongRunningOperation type.")
-	}
+		_, err = hOperation.InitOperation(ctx, *opRequest)
+	})
 
-	// err = json.Unmarshal(marshalledOperation, *opRequest)
-	// if err != nil {
-	// 	t.Fatalf("Error unmarshalling operation: " + err.Error())
-	// }
-	//
-	// // Testing with a Hooked Instace
-	// hOperation, err = matcher.CreateHookedInstace(body.OperationName, hooksSlice)
-	// if err != nil {
-	// 	t.Fatalf("Error creating instance of operation: " + err.Error())
-	// }
-	//
-	// _, err = hOperation.InitOperation(ctx, body)
-	// if err != nil {
-	// 	t.Fatalf("Error initializing operation: " + err.Error())
-	// }
-	//
-	// _ = hOperation.GuardConcurrency(ctx, nil)
-	// _ = hOperation.Run(ctx)
-	// if longOp, ok := (hOperation.OperationInstance).(*LongRunningOperation); ok {
-	// 	if longOp.num == 3 {
-	// 		t.Log("Hooks did ran successfully.")
-	// 	} else {
-	// 		t.Fatalf("Hooks did not run successfully.")
-	// 	}
-	// } else {
-	// 	t.Fatalf("Something went wrong casting the operation to LongRunningOperation type.")
-	// }
+	It("should initialize operation without error", func() {
+		Expect(err).NotTo(HaveOccurred())
+	})
+
+	It("should run hooks successfully", func() {
+		_ = hOperation.GuardConcurrency(ctx, nil)
+		_ = hOperation.Run(ctx)
+		if longOp, ok := (hOperation.OperationInstance).(*LongRunningOperation); ok {
+			Expect(longOp.num).To(Equal(3))
+		} else {
+			Fail("Something went wrong casting the operation to LongRunningOperation type.")
+		}
+	})
+})
+
+func TestHooks(t *testing.T) {
+	RegisterFailHandler(Fail)
+	RunSpecs(t, "Hooks Suite")
 }
