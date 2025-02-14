@@ -1,4 +1,4 @@
-package operationsbus
+package entity
 
 // This is the error that should be returned by the concurrency check should anything go wrong. This allows us to provide more details on what happened.
 // Mainly implemented to be usable by aks-rp users since they use this error type.

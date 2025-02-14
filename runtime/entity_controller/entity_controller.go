@@ -1,7 +1,10 @@
-package operationsbus
+package entity_controller
 
 import (
 	"context"
+
+	"github.com/Azure/aks-async/runtime/entity"
+	"github.com/Azure/aks-async/runtime/operation"
 )
 
 // EntityController is the interface used to grab the entity from where it's stored, typically a database.
@@ -9,5 +12,5 @@ import (
 // but also force them to grab the entity from somewhere, thus avoiding them simply returning always returning
 // nil error from GuardConcurrency method.
 type EntityController interface {
-	GetEntity(context.Context, OperationRequest) (Entity, error)
+	GetEntity(context.Context, operation.OperationRequest) (entity.Entity, error)
 }

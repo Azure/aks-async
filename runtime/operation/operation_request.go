@@ -1,4 +1,4 @@
-package operationsbus
+package operation
 
 import (
 	"encoding/json"

@@ -1,11 +1,15 @@
-package operationsbus
+package matcher
 
 import (
 	"errors"
 	"reflect"
+
+	"github.com/Azure/aks-async/runtime/entity"
+	"github.com/Azure/aks-async/runtime/hooks"
+	"github.com/Azure/aks-async/runtime/operation"
 )
 
-type EntityFactoryFunc func(string) Entity
+type EntityFactoryFunc func(string) entity.Entity
 
 // The matcher is utilized in order to keep track of the name and type of each operation.
 // This is required because we only send the OperationRequest through the service bus,
@@ -26,7 +30,7 @@ func NewMatcher() *Matcher {
 
 // Set adds a key-value pair to the map
 // Ex: matcher.Register("LongRunning", &LongRunning{})
-func (m *Matcher) Register(key string, value ApiOperation) {
+func (m *Matcher) Register(key string, value operation.ApiOperation) {
 	m.Types[key] = reflect.TypeOf(value).Elem()
 }
 
@@ -44,25 +48,25 @@ func (m *Matcher) Get(key string) (reflect.Type, bool) {
 
 // This will create an empty instance of the type, with which you can then call op.Init()
 // and initialize any info you need.
-func (m *Matcher) CreateOperationInstance(key string) (ApiOperation, error) {
+func (m *Matcher) CreateOperationInstance(key string) (operation.ApiOperation, error) {
 	t, exists := m.Types[key]
 	if !exists {
 		return nil, errors.New("The ApiOperation doesn't exist in the map: " + key)
 	}
 
-	instance := reflect.New(t).Interface().(ApiOperation)
+	instance := reflect.New(t).Interface().(operation.ApiOperation)
 	return instance, nil
 }
 
 // This will create an Entity using the EntityFactoryFunc with the lastOperationId by matching
 // with the key passed in.
-func (m *Matcher) CreateEntityInstance(key string, lastOperationId string) (Entity, error) {
+func (m *Matcher) CreateEntityInstance(key string, lastOperationId string) (entity.Entity, error) {
 
 	if lastOperationId == "" {
 		return nil, errors.New("lastOperationId is empty!")
 	}
 
-	var entity Entity
+	var entity entity.Entity
 	if f, ok := m.EntityCreators[key]; ok {
 		entity = f(lastOperationId)
 	} else {
@@ -77,19 +81,19 @@ func (m *Matcher) CreateEntityInstance(key string, lastOperationId string) (Enti
 }
 
 // Creates an instance of the operation with hooks enabled.
-func (m *Matcher) CreateHookedInstace(key string, hooks []BaseOperationHooksInterface) (*HookedApiOperation, error) {
-	operation, err := m.CreateOperationInstance(key)
+func (m *Matcher) CreateHookedInstace(key string, hookList []hooks.BaseOperationHooksInterface) (*hooks.HookedApiOperation, error) {
+	operationInstance, err := m.CreateOperationInstance(key)
 	if err != nil {
 		return nil, err
 	}
 
-	if hooks == nil {
-		hooks = []BaseOperationHooksInterface{}
+	if hookList == nil {
+		hookList = []hooks.BaseOperationHooksInterface{}
 	}
 
-	hOperation := &HookedApiOperation{
-		Operation:      operation,
-		OperationHooks: hooks,
+	hOperation := &hooks.HookedApiOperation{
+		OperationInstance: operationInstance,
+		OperationHooks:    hookList,
 	}
 
 	return hOperation, nil

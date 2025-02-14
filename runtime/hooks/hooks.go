@@ -1,52 +1,54 @@
-package operationsbus
+package hooks
 
 import (
 	"context"
 
+	"github.com/Azure/aks-async/runtime/entity"
+	"github.com/Azure/aks-async/runtime/operation"
 	"github.com/Azure/aks-middleware/grpc/server/ctxlogger"
 )
 
 // Hooks are used to extend the usability of the operations, and to let the user modify the behavior
 // of the different methods we enforce in case they want to change the inputs or outputs.
 type BaseOperationHooksInterface interface {
-	BeforeInitOperation(ctx context.Context, req OperationRequest) error
-	AfterInitOperation(ctx context.Context, op ApiOperation, req OperationRequest, err error) error
+	BeforeInitOperation(ctx context.Context, req operation.OperationRequest) error
+	AfterInitOperation(ctx context.Context, op operation.ApiOperation, req operation.OperationRequest, err error) error
 
-	BeforeGuardConcurrency(ctx context.Context, op ApiOperation, entity Entity) error
-	AfterGuardConcurrency(ctx context.Context, op ApiOperation, ce *CategorizedError) error
+	BeforeGuardConcurrency(ctx context.Context, op operation.ApiOperation, operationEntity entity.Entity) error
+	AfterGuardConcurrency(ctx context.Context, op operation.ApiOperation, ce *entity.CategorizedError) error
 
-	BeforeRun(ctx context.Context, op ApiOperation) error
-	AfterRun(ctx context.Context, op ApiOperation, err error) error
+	BeforeRun(ctx context.Context, op operation.ApiOperation) error
+	AfterRun(ctx context.Context, op operation.ApiOperation, err error) error
 }
 
 type HookedApiOperation struct {
-	Operation      ApiOperation
-	OperationHooks []BaseOperationHooksInterface
+	OperationInstance operation.ApiOperation
+	OperationHooks    []BaseOperationHooksInterface
 }
 
 // HookedApiOperation implements the methods of the BaseOperationHooksInterface to allow the user to
 // implement only the hooks they need (e.g. only implement the Before/AfterRun hooks),
 // instead of having to implement all of them.
-func (h *HookedApiOperation) BeforeInitOperation(ctx context.Context, req OperationRequest) error {
+func (h *HookedApiOperation) BeforeInitOperation(ctx context.Context, req operation.OperationRequest) error {
 	return nil
 }
-func (h *HookedApiOperation) AfterInitOperation(ctx context.Context, op ApiOperation, req OperationRequest, err error) error {
+func (h *HookedApiOperation) AfterInitOperation(ctx context.Context, op operation.ApiOperation, req operation.OperationRequest, err error) error {
 	return nil
 }
-func (h *HookedApiOperation) BeforeGuardConcurrency(ctx context.Context, op ApiOperation, entity Entity) error {
+func (h *HookedApiOperation) BeforeGuardConcurrency(ctx context.Context, op operation.ApiOperation, operationEntity entity.Entity) error {
 	return nil
 }
-func (h *HookedApiOperation) AfterGuardConcurrency(ctx context.Context, op ApiOperation, ce *CategorizedError) error {
+func (h *HookedApiOperation) AfterGuardConcurrency(ctx context.Context, op operation.ApiOperation, ce *entity.CategorizedError) error {
 	return nil
 }
-func (h *HookedApiOperation) BeforeRun(ctx context.Context, op ApiOperation) error {
+func (h *HookedApiOperation) BeforeRun(ctx context.Context, op operation.ApiOperation) error {
 	return nil
 }
-func (h *HookedApiOperation) AfterRun(ctx context.Context, op ApiOperation, err error) error {
+func (h *HookedApiOperation) AfterRun(ctx context.Context, op operation.ApiOperation, err error) error {
 	return nil
 }
 
-func (h *HookedApiOperation) InitOperation(ctx context.Context, opReq OperationRequest) (ApiOperation, error) {
+func (h *HookedApiOperation) InitOperation(ctx context.Context, opReq operation.OperationRequest) (operation.ApiOperation, error) {
 	logger := ctxlogger.GetLogger(ctx)
 	var herr error
 	logger.Info("Running BeforeInit hooks.")
@@ -59,11 +61,11 @@ func (h *HookedApiOperation) InitOperation(ctx context.Context, opReq OperationR
 	}
 
 	logger.Info("Running operation init.")
-	operation, err := h.Operation.InitOperation(ctx, opReq)
+	operation, err := h.OperationInstance.InitOperation(ctx, opReq)
 
 	logger.Info("Running AfterInit hooks.")
 	for _, hook := range h.OperationHooks {
-		herr = hook.AfterInitOperation(ctx, h.Operation, opReq, err)
+		herr = hook.AfterInitOperation(ctx, h.OperationInstance, opReq, err)
 		if herr != nil {
 			logger.Error("Something went wrong running a AfterInit hook: " + herr.Error())
 			return nil, herr
@@ -73,15 +75,15 @@ func (h *HookedApiOperation) InitOperation(ctx context.Context, opReq OperationR
 	return operation, err
 }
 
-func (h *HookedApiOperation) GuardConcurrency(ctx context.Context, entity Entity) *CategorizedError {
+func (h *HookedApiOperation) GuardConcurrency(ctx context.Context, operationEntity entity.Entity) *entity.CategorizedError {
 	logger := ctxlogger.GetLogger(ctx)
 	var herr error
 	logger.Info("Running BeforeGuardConcurrency hooks.")
 	for _, hook := range h.OperationHooks {
-		herr = hook.BeforeGuardConcurrency(ctx, h.Operation, entity)
+		herr = hook.BeforeGuardConcurrency(ctx, h.OperationInstance, operationEntity)
 		if herr != nil {
 			logger.Error("Something went wrong running a BeforeGuardConcurrency hook: " + herr.Error())
-			return &CategorizedError{
+			return &entity.CategorizedError{
 				Message: herr.Error(),
 				Err:     herr,
 			}
@@ -89,14 +91,14 @@ func (h *HookedApiOperation) GuardConcurrency(ctx context.Context, entity Entity
 	}
 
 	logger.Info("Running operation guard concurrency.")
-	ce := h.Operation.GuardConcurrency(ctx, entity)
+	ce := h.OperationInstance.GuardConcurrency(ctx, operationEntity)
 
 	logger.Info("Running AfterGuardConcurrency hooks.")
 	for _, hook := range h.OperationHooks {
-		herr = hook.AfterGuardConcurrency(ctx, h.Operation, ce)
+		herr = hook.AfterGuardConcurrency(ctx, h.OperationInstance, ce)
 		if herr != nil {
 			logger.Error("Something went wrong running a AfterGuardConcurrency hook: " + herr.Error())
-			return &CategorizedError{
+			return &entity.CategorizedError{
 				Message: herr.Error(),
 				Err:     herr,
 			}
@@ -111,7 +113,7 @@ func (h *HookedApiOperation) Run(ctx context.Context) error {
 	var herr error
 	logger.Info("Running BeforeRun hooks.")
 	for _, hook := range h.OperationHooks {
-		herr = hook.BeforeRun(ctx, h.Operation)
+		herr = hook.BeforeRun(ctx, h.OperationInstance)
 		if herr != nil {
 			logger.Error("Something went wrong running a BeforeRun hook: " + herr.Error())
 			return herr
@@ -119,11 +121,11 @@ func (h *HookedApiOperation) Run(ctx context.Context) error {
 	}
 
 	logger.Info("Running operation run.")
-	err := h.Operation.Run(ctx)
+	err := h.OperationInstance.Run(ctx)
 
 	logger.Info("Running AfterRun hooks.")
 	for _, hook := range h.OperationHooks {
-		herr = hook.AfterRun(ctx, h.Operation, err)
+		herr = hook.AfterRun(ctx, h.OperationInstance, err)
 		if herr != nil {
 			logger.Error("Something went wrong running a AfterRun hook: " + herr.Error())
 			return herr

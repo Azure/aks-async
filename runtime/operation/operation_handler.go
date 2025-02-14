@@ -1,7 +1,9 @@
-package operationsbus
+package operation
 
 import (
 	"context"
+
+	"github.com/Azure/aks-async/runtime/entity"
 )
 
 // ApiOperation is the interface all operations will need to implement.
@@ -16,7 +18,7 @@ type ApiOperation interface {
 	InitOperation(context.Context, OperationRequest) (ApiOperation, error)
 	// GuardConcurrency ensures that this operation is the latest operation that should be
 	// running to modify the Entity. If it fails, it should return the CategorizedError.
-	GuardConcurrency(context.Context, Entity) *CategorizedError
+	GuardConcurrency(context.Context, entity.Entity) *entity.CategorizedError
 	// Run will simply run the operation logic required.
 	Run(context.Context) error
 	// Return the OperationRequest, which may be required by other functions and structs
