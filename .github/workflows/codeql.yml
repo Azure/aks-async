@@ -17,7 +17,7 @@ on:
   pull_request:
     branches: [ "main" ]
   schedule:
-    - cron: '39 20 * * 1'
+    - cron: '39 20 * * 1' # Monday (Runs every Monday at 20:39 UTC)
 
 jobs:
   analyze:
