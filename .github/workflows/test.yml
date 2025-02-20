@@ -2,9 +2,16 @@ name: Run Unit Tests
 
 on: [pull_request]
 
+permissions:
+  contents: read  # Grants read-only access to repository contents at the workflow level
+
 jobs:
   test:
     runs-on: ubuntu-latest
+    permissions:
+      actions: read  # Allows the job to read metadata about actions used in the workflow
+      contents: read  # Ensures the job can read repository contents
+      security-events: write  # Grants permission to upload security-related reports (e.g., SARIF for CodeQL)
 
     strategy:
       matrix:
