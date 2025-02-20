@@ -20,7 +20,7 @@ on:
     - cron: '39 20 * * 1' # Monday (Runs every Monday at 20:39 UTC)
 
 permissions:
-  contents: read
+  contents: read  # Grants read-only access to repository contents at the workflow level
 
 jobs:
   analyze:
