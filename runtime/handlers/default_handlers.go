@@ -33,7 +33,7 @@ func DefaultHandlers(
 	if operationContainer != nil {
 		errorHandler = operation.NewOperationContainerHandler(
 			errors.NewErrorReturnHandler(
-				operation.OperationHandler(matcher, hooks, entityController),
+				operation.NewOperationHandler(matcher, hooks, entityController),
 				serviceBusReceiver,
 				nil,
 			),
@@ -41,7 +41,7 @@ func DefaultHandlers(
 		)
 	} else {
 		errorHandler = errors.NewErrorReturnHandler(
-			operation.OperationHandler(matcher, hooks, entityController),
+			operation.NewOperationHandler(matcher, hooks, entityController),
 			serviceBusReceiver,
 			nil,
 		)

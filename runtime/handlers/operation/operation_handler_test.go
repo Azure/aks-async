@@ -17,7 +17,7 @@ package operation
 // 	. "github.com/onsi/ginkgo/v2"
 // 	. "github.com/onsi/gomega"
 // )
-
+//
 // func TestOperationHandler(t *testing.T) {
 // 	RegisterFailHandler(Fail)
 // 	RunSpecs(t, "OperationHandler Suite")
@@ -49,7 +49,7 @@ package operation
 // 		message = &azservicebus.ReceivedMessage{
 // 			Body: marshalledOperation,
 // 		}
-// 		handler = NewQoSHandler(logger, SampleHandler())
+// 		handler = NewOperationContainerHandler(logger, SampleHandler())
 // 	})
 //
 // 	Context("mock testing", func() {
