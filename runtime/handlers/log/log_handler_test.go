@@ -25,7 +25,6 @@ func TestLogHandler(t *testing.T) {
 
 var _ = Describe("DeadLetterQueueHandler", func() {
 	var (
-		// ctrl                         *gomock.Controller
 		ctx     context.Context
 		buf     bytes.Buffer
 		settler shuttle.MessageSettler
@@ -36,7 +35,6 @@ var _ = Describe("DeadLetterQueueHandler", func() {
 
 	BeforeEach(func() {
 		buf.Reset()
-		// ctrl = gomock.NewController(GinkgoT())
 		logger := slog.New(slog.NewTextHandler(&buf, nil))
 		ctx = context.TODO()
 		ctx = ctxlogger.WithLogger(ctx, logger)

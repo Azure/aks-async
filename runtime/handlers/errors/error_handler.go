@@ -95,20 +95,21 @@ func retryOperationError(receiver sb.ReceiverInterface, ctx context.Context, set
 	logger := ctxlogger.GetLogger(ctx)
 	logger.Info("Abandoning message for retry.")
 
-	azReceiver, err := receiver.GetAzureReceiver()
-	if err != nil {
-		return err
-	}
+	// azReceiver, err := receiver.GetAzureReceiver()
+	// if err != nil {
+	// 	return err
+	// }
 
 	var body operation.OperationRequest
-	err = json.Unmarshal(message.Body, &body)
+	err := json.Unmarshal(message.Body, &body)
 	if err != nil {
 		logger.Error("Error calling ReceiveOperation: " + err.Error())
 		return err
 	}
 
 	// Retry the message
-	err = azReceiver.AbandonMessage(ctx, message, nil)
+	//TODO(mheberling): The settler should be able to do this
+	err = settler.AbandonMessage(ctx, message, nil)
 	if err != nil {
 		logger.Error("Error abandoning message: " + err.Error())
 		return err
