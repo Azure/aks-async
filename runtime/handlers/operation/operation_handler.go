@@ -54,7 +54,7 @@ func NewOperationHandler(matcher *matcher.Matcher, hooks []hooks.BaseOperationHo
 
 		// 4. Guard against concurrency.
 		ce := operation.GuardConcurrency(ctx, operationEntity)
-		if err != nil {
+		if ce != nil {
 			logger.Error("Error calling GuardConcurrency: " + ce.Err.Error())
 			return &errors.RetryError{Message: "Error guarding operation concurrency."}
 		}
@@ -67,19 +67,26 @@ func NewOperationHandler(matcher *matcher.Matcher, hooks []hooks.BaseOperationHo
 		}
 
 		// 6. Finish the message
-		settleMessage(ctx, settler, message, nil)
+		err = settleMessage(ctx, settler, message, nil)
+		if err != nil {
+			logger.Error("Settling message: " + err.Error())
+			return err
+		}
 
 		logger.Info("Operation run successfully!")
 		return nil
 	}
 }
 
-func settleMessage(ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage, options *azservicebus.CompleteMessageOptions) {
+func settleMessage(ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage, options *azservicebus.CompleteMessageOptions) error {
 	logger := ctxlogger.GetLogger(ctx)
 	logger.Info("Settling message.")
 
 	err := settler.CompleteMessage(ctx, message, options)
 	if err != nil {
 		logger.Error("Unable to settle message.")
+		return err
 	}
+
+	return nil
 }
