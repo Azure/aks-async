@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"errors"
 	"log/slog"
+	"strings"
+	"testing"
 
 	"github.com/Azure/aks-async/mocks"
 	"github.com/Azure/aks-async/runtime/entity"
@@ -20,7 +22,12 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
-var _ = Describe("OperationContainerHandler Testing", func() {
+func TestQoSErrorHandler(t *testing.T) {
+	RegisterFailHandler(Fail)
+	RunSpecs(t, "OperationHandler Suite")
+}
+
+var _ = Describe("OperationHandler", func() {
 	var (
 		ctrl        *gomock.Controller
 		ctx         context.Context
@@ -189,4 +196,37 @@ func (l *SampleOperation) Run(ctx context.Context) error {
 
 func (l *SampleOperation) GetOperationRequest() *operation.OperationRequest {
 	return &l.opReq
+}
+
+func SampleHandler() shuttle.HandlerFunc {
+	return func(ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage) {
+	}
+}
+
+func SampleErrorHandler(testErrorMessage error) handlerErrors.ErrorHandlerFunc {
+	return func(ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage) error {
+		return testErrorMessage
+	}
+}
+
+type fakeMessageSettler struct{}
+
+func (f *fakeMessageSettler) AbandonMessage(ctx context.Context, message *azservicebus.ReceivedMessage, options *azservicebus.AbandonMessageOptions) error {
+	return nil
+}
+func (f *fakeMessageSettler) CompleteMessage(ctx context.Context, message *azservicebus.ReceivedMessage, options *azservicebus.CompleteMessageOptions) error {
+	failureMessage := "failure_test"
+	if message.ContentType != nil && strings.Compare(*message.ContentType, failureMessage) == 0 {
+		return errors.New("settler error")
+	}
+	return nil
+}
+func (f *fakeMessageSettler) DeadLetterMessage(ctx context.Context, message *azservicebus.ReceivedMessage, options *azservicebus.DeadLetterOptions) error {
+	return nil
+}
+func (f *fakeMessageSettler) DeferMessage(ctx context.Context, message *azservicebus.ReceivedMessage, options *azservicebus.DeferMessageOptions) error {
+	return nil
+}
+func (f *fakeMessageSettler) RenewMessageLock(ctx context.Context, message *azservicebus.ReceivedMessage, options *azservicebus.RenewMessageLockOptions) error {
+	return nil
 }

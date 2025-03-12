@@ -9,6 +9,7 @@ import (
 	"github.com/Azure/aks-async/runtime/handlers/errors"
 	"github.com/Azure/aks-async/runtime/handlers/log"
 	"github.com/Azure/aks-async/runtime/handlers/operation"
+	och "github.com/Azure/aks-async/runtime/handlers/operation_container"
 	"github.com/Azure/aks-async/runtime/handlers/qos"
 	"github.com/Azure/aks-async/runtime/hooks"
 	"github.com/Azure/aks-async/runtime/matcher"
@@ -31,7 +32,7 @@ func DefaultHandlers(
 
 	var errorHandler errors.ErrorHandlerFunc
 	if operationContainer != nil {
-		errorHandler = operation.NewOperationContainerHandler(
+		errorHandler = och.NewOperationContainerHandler(
 			errors.NewErrorReturnHandler(
 				operation.NewOperationHandler(matcher, hooks, entityController),
 				serviceBusReceiver,

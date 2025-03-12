@@ -8,6 +8,8 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/messaging/azservicebus"
 )
 
+var _ ServiceBusClientInterface = &FakeServiceBusClient{}
+
 // In the future, support for multiple queues of messages might also be required.
 type FakeServiceBusClient struct {
 	messages [][]byte
@@ -32,6 +34,8 @@ func (f *FakeServiceBusClient) NewServiceBusSender(_ context.Context, _ string, 
 	}, nil
 }
 
+var _ SenderInterface = &FakeSender{}
+
 type FakeSender struct {
 	client *FakeServiceBusClient
 }
@@ -48,6 +52,8 @@ func (s *FakeSender) SendMessage(_ context.Context, message []byte) error {
 func (s *FakeSender) GetAzureSender() (*azservicebus.Sender, error) {
 	return nil, nil
 }
+
+var _ ReceiverInterface = &FakeReceiver{}
 
 type FakeReceiver struct {
 	client *FakeServiceBusClient

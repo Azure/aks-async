@@ -24,7 +24,7 @@ func TestErrorHandler(t *testing.T) {
 	RunSpecs(t, "ErrorHandler Suite")
 }
 
-var _ = Describe("DeadLetterQueueHandler", func() {
+var _ = Describe("ErrorHandler", func() {
 	var (
 		ctrl             *gomock.Controller
 		ctx              context.Context

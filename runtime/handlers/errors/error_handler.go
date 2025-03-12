@@ -2,16 +2,14 @@ package errors
 
 import (
 	"context"
-	"encoding/json"
 
-	"github.com/Azure/aks-async/runtime/operation"
 	sb "github.com/Azure/aks-async/servicebus"
 	"github.com/Azure/aks-middleware/grpc/server/ctxlogger"
 	"github.com/Azure/azure-sdk-for-go/sdk/messaging/azservicebus"
 	"github.com/Azure/go-shuttle/v2"
 )
 
-// ErrorHandler interface that returns an error. Required for any error handling and not depending on panics.
+// ErrorHandler interface that returns an error. Required for any error handling accross handlers.
 type ErrorHandler interface {
 	Handle(ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage) error
 }
@@ -78,15 +76,10 @@ func nonRetryOperationError(ctx context.Context, settler shuttle.MessageSettler,
 	logger := ctxlogger.GetLogger(ctx)
 	logger.Info("Non Retry Operation Error.")
 
-	var body operation.OperationRequest
-	err := json.Unmarshal(message.Body, &body)
+	err := settler.DeadLetterMessage(ctx, message, nil)
 	if err != nil {
-		logger.Error("Error calling ReceiveOperation: " + err.Error())
-		return err
+		logger.Error("Unable to deadletter message.")
 	}
-
-	// Settle message
-	deadLetterMessage(ctx, settler, message, nil)
 
 	return nil
 }
@@ -95,35 +88,11 @@ func retryOperationError(receiver sb.ReceiverInterface, ctx context.Context, set
 	logger := ctxlogger.GetLogger(ctx)
 	logger.Info("Abandoning message for retry.")
 
-	// azReceiver, err := receiver.GetAzureReceiver()
-	// if err != nil {
-	// 	return err
-	// }
-
-	var body operation.OperationRequest
-	err := json.Unmarshal(message.Body, &body)
-	if err != nil {
-		logger.Error("Error calling ReceiveOperation: " + err.Error())
-		return err
-	}
-
-	// Retry the message
-	//TODO(mheberling): The settler should be able to do this
-	err = settler.AbandonMessage(ctx, message, nil)
+	err := settler.AbandonMessage(ctx, message, nil)
 	if err != nil {
 		logger.Error("Error abandoning message: " + err.Error())
 		return err
 	}
 
 	return nil
-}
-
-func deadLetterMessage(ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage, options *azservicebus.DeadLetterOptions) {
-	logger := ctxlogger.GetLogger(ctx)
-	logger.Info("DeadLettering message.")
-
-	err := settler.DeadLetterMessage(ctx, message, options)
-	if err != nil {
-		logger.Error("Unable to deadletter message.")
-	}
 }
