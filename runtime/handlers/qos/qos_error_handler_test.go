@@ -17,14 +17,8 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-// func TestQoSErrorHandler(t *testing.T) {
-// 	RegisterFailHandler(Fail)
-// 	RunSpecs(t, "QoSErrorHandler Suite")
-// }
-
-var _ = Describe("DeadLetterQueueHandler", func() {
+var _ = Describe("QoSErrorHandler", func() {
 	var (
-		// ctrl                         *gomock.Controller
 		ctx     context.Context
 		buf     bytes.Buffer
 		settler shuttle.MessageSettler

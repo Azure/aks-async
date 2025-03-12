@@ -23,7 +23,7 @@ func TestLogHandler(t *testing.T) {
 	RunSpecs(t, "LogHandler Suite")
 }
 
-var _ = Describe("DeadLetterQueueHandler", func() {
+var _ = Describe("LogHandler", func() {
 	var (
 		ctx     context.Context
 		buf     bytes.Buffer

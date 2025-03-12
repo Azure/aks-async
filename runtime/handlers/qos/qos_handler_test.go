@@ -16,9 +16,8 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("DeadLetterQueueHandler", func() {
+var _ = Describe("QoSHandler", func() {
 	var (
-		// ctrl                         *gomock.Controller
 		ctx     context.Context
 		buf     bytes.Buffer
 		settler shuttle.MessageSettler
