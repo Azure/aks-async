@@ -64,15 +64,14 @@ func NewOperationContainerHandler(errHandler errors.ErrorHandlerFunc, operationC
 			case *errors.NonRetryError:
 				// Cancel the operation
 				logger.Info("OperationContainerHandler: Setting operation as Cancelled.")
-				// err = operationContainerOperationCancel(ctx, body.OperationId)
 				updateOperationStatusRequest = &oc.UpdateOperationStatusRequest{
 					OperationId: body.OperationId,
 					Status:      oc.Status_CANCELLED,
 				}
-				_, err = operationContainer.UpdateOperationStatus(ctx, updateOperationStatusRequest)
-				if err != nil {
+				_, updateErr := operationContainer.UpdateOperationStatus(ctx, updateOperationStatusRequest)
+				if updateErr != nil {
 					logger.Error("OperationContainerHandler: Something went wrong setting the operation as Cancelled" + err.Error())
-					return err
+					return updateErr
 				}
 			case *errors.RetryError:
 				// Set the operation as Pending
@@ -81,10 +80,10 @@ func NewOperationContainerHandler(errHandler errors.ErrorHandlerFunc, operationC
 					OperationId: body.OperationId,
 					Status:      oc.Status_PENDING,
 				}
-				_, err = operationContainer.UpdateOperationStatus(ctx, updateOperationStatusRequest)
-				if err != nil {
+				_, updateErr := operationContainer.UpdateOperationStatus(ctx, updateOperationStatusRequest)
+				if updateErr != nil {
 					logger.Error("OperationContainerHandler: Something went wrong setting the operation as Pending:" + err.Error())
-					return err
+					return updateErr
 				}
 			default:
 				logger.Info("OperationContainerHandler: Error type not recognized. Operation status not changed.")
@@ -95,10 +94,10 @@ func NewOperationContainerHandler(errHandler errors.ErrorHandlerFunc, operationC
 				OperationId: body.OperationId,
 				Status:      oc.Status_COMPLETED,
 			}
-			_, err = operationContainer.UpdateOperationStatus(ctx, updateOperationStatusRequest)
-			if err != nil {
-				logger.Error("OperationContainerHandler: Something went wrong setting the operation as Completed: " + err.Error())
-				return err
+			_, updateErr := operationContainer.UpdateOperationStatus(ctx, updateOperationStatusRequest)
+			if updateErr != nil {
+				logger.Error("OperationContainerHandler: Something went wrong setting the operation as Completed: " + updateErr.Error())
+				return updateErr
 			}
 		}
 

@@ -64,25 +64,3 @@ func SampleErrorHandler() handlerError.ErrorHandlerFunc {
 		return nil
 	}
 }
-
-// type fakeMessageSettler struct{}
-//
-// func (f *fakeMessageSettler) AbandonMessage(ctx context.Context, message *azservicebus.ReceivedMessage, options *azservicebus.AbandonMessageOptions) error {
-// 	return nil
-// }
-// func (f *fakeMessageSettler) CompleteMessage(ctx context.Context, message *azservicebus.ReceivedMessage, options *azservicebus.CompleteMessageOptions) error {
-// 	failureMessage := "failure_test"
-// 	if message.ContentType != nil && strings.Compare(*message.ContentType, failureMessage) == 0 {
-// 		return errors.New("settler error")
-// 	}
-// 	return nil
-// }
-// func (f *fakeMessageSettler) DeadLetterMessage(ctx context.Context, message *azservicebus.ReceivedMessage, options *azservicebus.DeadLetterOptions) error {
-// 	return nil
-// }
-// func (f *fakeMessageSettler) DeferMessage(ctx context.Context, message *azservicebus.ReceivedMessage, options *azservicebus.DeferMessageOptions) error {
-// 	return nil
-// }
-// func (f *fakeMessageSettler) RenewMessageLock(ctx context.Context, message *azservicebus.ReceivedMessage, options *azservicebus.RenewMessageLockOptions) error {
-// 	return nil
-// }
