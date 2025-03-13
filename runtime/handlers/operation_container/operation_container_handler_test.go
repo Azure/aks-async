@@ -13,6 +13,8 @@ import (
 	ocMock "github.com/Azure/OperationContainer/api/v1/mock"
 	handlerErrors "github.com/Azure/aks-async/runtime/handlers/errors"
 	"github.com/Azure/aks-async/runtime/operation"
+	sampleErrorHandler "github.com/Azure/aks-async/runtime/testutils/error_handler"
+	"github.com/Azure/aks-async/runtime/testutils/settler"
 	"github.com/Azure/aks-middleware/grpc/server/ctxlogger"
 	"github.com/Azure/azure-sdk-for-go/sdk/messaging/azservicebus"
 	"github.com/Azure/go-shuttle/v2"
@@ -32,7 +34,7 @@ var _ = Describe("OperationContainerHandler", func() {
 		ctx                      context.Context
 		buf                      bytes.Buffer
 		operationId              string
-		settler                  shuttle.MessageSettler
+		sampleSettler            shuttle.MessageSettler
 		message                  *azservicebus.ReceivedMessage
 		operationContainerClient *ocMock.MockOperationContainerClient
 	)
@@ -45,7 +47,7 @@ var _ = Describe("OperationContainerHandler", func() {
 		ctx = ctxlogger.WithLogger(ctx, logger)
 
 		operationContainerClient = ocMock.NewMockOperationContainerClient(ctrl)
-		settler = &fakeMessageSettler{}
+		sampleSettler = &settler.SampleMessageSettler{}
 		operationId = "1"
 		req := &operation.OperationRequest{
 			OperationId: operationId,
@@ -75,30 +77,30 @@ var _ = Describe("OperationContainerHandler", func() {
 		})
 		Context("no error", func() {
 			It("should not throw an error", func() {
-				operationContainerHandler = NewOperationContainerHandler(SampleErrorHandler(nil), operationContainerClient)
+				operationContainerHandler = NewOperationContainerHandler(sampleErrorHandler.SampleErrorHandler(nil), operationContainerClient)
 
 				updateOperationStatusRequest.Status = oc.Status_COMPLETED
 				operationContainerClient.EXPECT().UpdateOperationStatus(ctx, gomock.Any()).Return(nil, nil)
 				operationContainerClient.EXPECT().UpdateOperationStatus(ctx, updateOperationStatusRequest).Return(nil, nil)
-				err := operationContainerHandler(ctx, settler, message)
+				err := operationContainerHandler(ctx, sampleSettler, message)
 				Expect(err).To(BeNil())
 			})
 			It("should handle error", func() {
-				operationContainerHandler = NewOperationContainerHandler(SampleErrorHandler(nil), operationContainerClient)
+				operationContainerHandler = NewOperationContainerHandler(sampleErrorHandler.SampleErrorHandler(nil), operationContainerClient)
 
 				updateOperationStatusRequest.Status = oc.Status_COMPLETED
 				operationContainerClient.EXPECT().UpdateOperationStatus(ctx, gomock.Any()).Return(nil, nil)
 
 				returnedErr := errors.New("returned error")
 				operationContainerClient.EXPECT().UpdateOperationStatus(ctx, updateOperationStatusRequest).Return(nil, returnedErr)
-				err := operationContainerHandler(ctx, settler, message)
+				err := operationContainerHandler(ctx, sampleSettler, message)
 				Expect(err).ToNot(BeNil())
 				Expect(err.Error()).To(Equal(returnedErr.Error()))
 			})
 		})
 		Context("retries", func() {
 			It("should retry 5 times and fail", func() {
-				operationContainerHandler = NewOperationContainerHandler(SampleErrorHandler(nil), operationContainerClient)
+				operationContainerHandler = NewOperationContainerHandler(sampleErrorHandler.SampleErrorHandler(nil), operationContainerClient)
 				updateOperationStatusRequest.Status = oc.Status_IN_PROGRESS
 
 				err := errors.New("Some database error.")
@@ -107,12 +109,12 @@ var _ = Describe("OperationContainerHandler", func() {
 				operationContainerClient.EXPECT().UpdateOperationStatus(ctx, updateOperationStatusRequest).Return(nil, err)
 				operationContainerClient.EXPECT().UpdateOperationStatus(ctx, updateOperationStatusRequest).Return(nil, err)
 				operationContainerClient.EXPECT().UpdateOperationStatus(ctx, updateOperationStatusRequest).Return(nil, err)
-				err = operationContainerHandler(ctx, settler, message)
+				err = operationContainerHandler(ctx, sampleSettler, message)
 				Expect(err).ToNot(BeNil())
 				Expect(strings.Count(buf.String(), "Trying again")).To(Equal(5))
 			})
 			It("should retry 3 times and succeed", func() {
-				operationContainerHandler = NewOperationContainerHandler(SampleErrorHandler(nil), operationContainerClient)
+				operationContainerHandler = NewOperationContainerHandler(sampleErrorHandler.SampleErrorHandler(nil), operationContainerClient)
 				updateOperationStatusRequest.Status = oc.Status_IN_PROGRESS
 
 				err := errors.New("Some database error.")
@@ -126,7 +128,7 @@ var _ = Describe("OperationContainerHandler", func() {
 					Status:      oc.Status_COMPLETED,
 				}
 				operationContainerClient.EXPECT().UpdateOperationStatus(ctx, completedUpdateOperationStatusRequest).Return(nil, nil) // Final update to complete
-				err = operationContainerHandler(ctx, settler, message)
+				err = operationContainerHandler(ctx, sampleSettler, message)
 				Expect(err).To(BeNil())
 				Expect(strings.Count(buf.String(), "Trying again")).To(Equal(3))
 			})
@@ -138,27 +140,27 @@ var _ = Describe("OperationContainerHandler", func() {
 					nonRetryError := &handlerErrors.NonRetryError{
 						Message: "NonRetryError!",
 					}
-					operationContainerHandler = NewOperationContainerHandler(SampleErrorHandler(nonRetryError), operationContainerClient)
+					operationContainerHandler = NewOperationContainerHandler(sampleErrorHandler.SampleErrorHandler(nonRetryError), operationContainerClient)
 
 					operationContainerClient.EXPECT().UpdateOperationStatus(ctx, gomock.Any()).Return(nil, nil)
 
 					updateOperationStatusRequest.Status = oc.Status_CANCELLED
 					operationContainerClient.EXPECT().UpdateOperationStatus(ctx, updateOperationStatusRequest).Return(nil, nil)
-					err := operationContainerHandler(ctx, settler, message)
+					err := operationContainerHandler(ctx, sampleSettler, message)
 					Expect(err).ToNot(BeNil())
 				})
 				It("should handle error in update while handling a NonRetryError", func() {
 					nonRetryError := &handlerErrors.NonRetryError{
 						Message: "NonRetryError!",
 					}
-					operationContainerHandler = NewOperationContainerHandler(SampleErrorHandler(nonRetryError), operationContainerClient)
+					operationContainerHandler = NewOperationContainerHandler(sampleErrorHandler.SampleErrorHandler(nonRetryError), operationContainerClient)
 
 					operationContainerClient.EXPECT().UpdateOperationStatus(ctx, gomock.Any()).Return(nil, nil)
 
 					returnedErr := errors.New("returned error")
 					updateOperationStatusRequest.Status = oc.Status_CANCELLED
 					operationContainerClient.EXPECT().UpdateOperationStatus(ctx, updateOperationStatusRequest).Return(nil, returnedErr)
-					err := operationContainerHandler(ctx, settler, message)
+					err := operationContainerHandler(ctx, sampleSettler, message)
 					Expect(err).ToNot(BeNil())
 					Expect(err.Error()).To(Equal(returnedErr.Error()))
 				})
@@ -168,27 +170,27 @@ var _ = Describe("OperationContainerHandler", func() {
 					retryError := &handlerErrors.RetryError{
 						Message: "RetryError!",
 					}
-					operationContainerHandler = NewOperationContainerHandler(SampleErrorHandler(retryError), operationContainerClient)
+					operationContainerHandler = NewOperationContainerHandler(sampleErrorHandler.SampleErrorHandler(retryError), operationContainerClient)
 
 					operationContainerClient.EXPECT().UpdateOperationStatus(ctx, gomock.Any()).Return(nil, nil)
 
 					updateOperationStatusRequest.Status = oc.Status_PENDING
 					operationContainerClient.EXPECT().UpdateOperationStatus(ctx, updateOperationStatusRequest).Return(nil, nil)
-					err := operationContainerHandler(ctx, settler, message)
+					err := operationContainerHandler(ctx, sampleSettler, message)
 					Expect(err).ToNot(BeNil())
 				})
 				It("should handle an error while handling a RetryError", func() {
 					retryError := &handlerErrors.RetryError{
 						Message: "RetryError!",
 					}
-					operationContainerHandler = NewOperationContainerHandler(SampleErrorHandler(retryError), operationContainerClient)
+					operationContainerHandler = NewOperationContainerHandler(sampleErrorHandler.SampleErrorHandler(retryError), operationContainerClient)
 
 					operationContainerClient.EXPECT().UpdateOperationStatus(ctx, gomock.Any()).Return(nil, nil)
 
 					returnedErr := errors.New("returned error")
 					updateOperationStatusRequest.Status = oc.Status_PENDING
 					operationContainerClient.EXPECT().UpdateOperationStatus(ctx, updateOperationStatusRequest).Return(nil, returnedErr)
-					err := operationContainerHandler(ctx, settler, message)
+					err := operationContainerHandler(ctx, sampleSettler, message)
 					Expect(err).ToNot(BeNil())
 					Expect(err.Error()).To(Equal(returnedErr.Error()))
 				})
@@ -197,47 +199,14 @@ var _ = Describe("OperationContainerHandler", func() {
 				It("should handle a default", func() {
 					defaultError := errors.New("default error")
 
-					operationContainerHandler = NewOperationContainerHandler(SampleErrorHandler(defaultError), operationContainerClient)
+					operationContainerHandler = NewOperationContainerHandler(sampleErrorHandler.SampleErrorHandler(defaultError), operationContainerClient)
 
 					operationContainerClient.EXPECT().UpdateOperationStatus(ctx, gomock.Any()).Return(nil, nil)
 
-					err := operationContainerHandler(ctx, settler, message)
+					err := operationContainerHandler(ctx, sampleSettler, message)
 					Expect(err).ToNot(BeNil())
 				})
 			})
 		})
 	})
 })
-
-func SampleHandler() shuttle.HandlerFunc {
-	return func(ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage) {
-	}
-}
-
-func SampleErrorHandler(testErrorMessage error) handlerErrors.ErrorHandlerFunc {
-	return func(ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage) error {
-		return testErrorMessage
-	}
-}
-
-type fakeMessageSettler struct{}
-
-func (f *fakeMessageSettler) AbandonMessage(ctx context.Context, message *azservicebus.ReceivedMessage, options *azservicebus.AbandonMessageOptions) error {
-	return nil
-}
-func (f *fakeMessageSettler) CompleteMessage(ctx context.Context, message *azservicebus.ReceivedMessage, options *azservicebus.CompleteMessageOptions) error {
-	failureMessage := "failure_test"
-	if message.ContentType != nil && strings.Compare(*message.ContentType, failureMessage) == 0 {
-		return errors.New("settler error")
-	}
-	return nil
-}
-func (f *fakeMessageSettler) DeadLetterMessage(ctx context.Context, message *azservicebus.ReceivedMessage, options *azservicebus.DeadLetterOptions) error {
-	return nil
-}
-func (f *fakeMessageSettler) DeferMessage(ctx context.Context, message *azservicebus.ReceivedMessage, options *azservicebus.DeferMessageOptions) error {
-	return nil
-}
-func (f *fakeMessageSettler) RenewMessageLock(ctx context.Context, message *azservicebus.ReceivedMessage, options *azservicebus.RenewMessageLockOptions) error {
-	return nil
-}

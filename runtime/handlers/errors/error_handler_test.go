@@ -11,6 +11,8 @@ import (
 
 	"github.com/Azure/aks-async/mocks"
 	"github.com/Azure/aks-async/runtime/operation"
+	sampleHandler "github.com/Azure/aks-async/runtime/testutils/handler"
+	"github.com/Azure/aks-async/runtime/testutils/settler"
 	"github.com/Azure/aks-middleware/grpc/server/ctxlogger"
 	"github.com/Azure/azure-sdk-for-go/sdk/messaging/azservicebus"
 	"github.com/Azure/go-shuttle/v2"
@@ -29,7 +31,7 @@ var _ = Describe("ErrorHandler", func() {
 		ctrl             *gomock.Controller
 		ctx              context.Context
 		buf              bytes.Buffer
-		settler          shuttle.MessageSettler
+		sampleSettler    shuttle.MessageSettler
 		message          *azservicebus.ReceivedMessage
 		req              operation.OperationRequest
 		mockReceiver     *mocks.MockReceiverInterface
@@ -44,7 +46,7 @@ var _ = Describe("ErrorHandler", func() {
 		ctx = context.TODO()
 		ctx = ctxlogger.WithLogger(ctx, logger)
 
-		settler = &fakeMessageSettler{}
+		sampleSettler = &settler.SampleMessageSettler{}
 		marshalledOperation, err := json.Marshal(req)
 		if err != nil {
 			return
@@ -60,8 +62,8 @@ var _ = Describe("ErrorHandler", func() {
 		)
 
 		It("should do nothing if no error", func() {
-			handler = NewErrorHandler(SampleErrorHandler(nil), mockReceiver, SampleHandler())
-			handler(ctx, settler, message)
+			handler = NewErrorHandler(SampleErrorHandler(nil), mockReceiver, sampleHandler.SampleHandler())
+			handler(ctx, sampleSettler, message)
 			Expect(strings.Count(buf.String(), "ErrorHandler: ")).To(Equal(0))
 		})
 
@@ -70,8 +72,8 @@ var _ = Describe("ErrorHandler", func() {
 				testErrorMessage = &RetryError{
 					Message: "RetryError",
 				}
-				handler = NewErrorHandler(SampleErrorHandler(testErrorMessage), mockReceiver, SampleHandler())
-				handler(ctx, settler, message)
+				handler = NewErrorHandler(SampleErrorHandler(testErrorMessage), mockReceiver, sampleHandler.SampleHandler())
+				handler(ctx, sampleSettler, message)
 				Expect(strings.Count(buf.String(), "ErrorHandler: ")).To(Equal(2))
 				Expect(strings.Count(buf.String(), "ErrorHandler: Handling RetryError")).To(Equal(1))
 			})
@@ -81,8 +83,8 @@ var _ = Describe("ErrorHandler", func() {
 				testErrorMessage = &RetryError{
 					Message: "RetryError",
 				}
-				handler = NewErrorHandler(SampleErrorHandler(testErrorMessage), mockReceiver, SampleHandler())
-				handler(ctx, settler, message)
+				handler = NewErrorHandler(SampleErrorHandler(testErrorMessage), mockReceiver, sampleHandler.SampleHandler())
+				handler(ctx, sampleSettler, message)
 				Expect(strings.Count(buf.String(), "ErrorHandler: ")).To(Equal(3))
 				Expect(strings.Count(buf.String(), "ErrorHandler: Handling RetryError")).To(Equal(1))
 			})
@@ -92,8 +94,8 @@ var _ = Describe("ErrorHandler", func() {
 				testErrorMessage = &NonRetryError{
 					Message: "NonRetryError",
 				}
-				handler = NewErrorHandler(SampleErrorHandler(testErrorMessage), mockReceiver, SampleHandler())
-				handler(ctx, settler, message)
+				handler = NewErrorHandler(SampleErrorHandler(testErrorMessage), mockReceiver, sampleHandler.SampleHandler())
+				handler(ctx, sampleSettler, message)
 				Expect(strings.Count(buf.String(), "ErrorHandler: ")).To(Equal(2))
 				Expect(strings.Count(buf.String(), "ErrorHandler: Handling NonRetryError")).To(Equal(1))
 			})
@@ -103,16 +105,16 @@ var _ = Describe("ErrorHandler", func() {
 				testErrorMessage = &NonRetryError{
 					Message: "NonRetryError",
 				}
-				handler = NewErrorHandler(SampleErrorHandler(testErrorMessage), mockReceiver, SampleHandler())
-				handler(ctx, settler, message)
+				handler = NewErrorHandler(SampleErrorHandler(testErrorMessage), mockReceiver, sampleHandler.SampleHandler())
+				handler(ctx, sampleSettler, message)
 				Expect(strings.Count(buf.String(), "ErrorHandler: ")).To(Equal(3))
 				Expect(strings.Count(buf.String(), "ErrorHandler: Handling NonRetryError")).To(Equal(1))
 			})
 		})
 		It("should show different error in log", func() {
 			testErrorMessage = errors.New("Random error")
-			handler = NewErrorHandler(SampleErrorHandler(testErrorMessage), mockReceiver, SampleHandler())
-			handler(ctx, settler, message)
+			handler = NewErrorHandler(SampleErrorHandler(testErrorMessage), mockReceiver, sampleHandler.SampleHandler())
+			handler(ctx, sampleSettler, message)
 			Expect(strings.Count(buf.String(), "ErrorHandler: ")).To(Equal(2))
 			Expect(strings.Count(buf.String(), "Error not recognized")).To(Equal(1))
 		})
@@ -124,8 +126,8 @@ var _ = Describe("ErrorHandler", func() {
 		)
 
 		It("should do nothing if no error", func() {
-			errHandler = NewErrorReturnHandler(SampleErrorHandler(nil), mockReceiver, SampleHandler())
-			errHandler(ctx, settler, message)
+			errHandler = NewErrorReturnHandler(SampleErrorHandler(nil), mockReceiver, sampleHandler.SampleHandler())
+			errHandler(ctx, sampleSettler, message)
 			Expect(strings.Count(buf.String(), "ErrorReturnHandler: ")).To(Equal(0))
 		})
 
@@ -134,8 +136,8 @@ var _ = Describe("ErrorHandler", func() {
 				testErrorMessage = &RetryError{
 					Message: "RetryError",
 				}
-				errHandler = NewErrorReturnHandler(SampleErrorHandler(testErrorMessage), mockReceiver, SampleHandler())
-				err := errHandler(ctx, settler, message)
+				errHandler = NewErrorReturnHandler(SampleErrorHandler(testErrorMessage), mockReceiver, sampleHandler.SampleHandler())
+				err := errHandler(ctx, sampleSettler, message)
 				Expect(strings.Count(buf.String(), "ErrorReturnHandler: ")).To(Equal(2))
 				Expect(strings.Count(buf.String(), "ErrorReturnHandler: Handling RetryError")).To(Equal(1))
 				Expect(err).ToNot(BeNil())
@@ -146,8 +148,8 @@ var _ = Describe("ErrorHandler", func() {
 				testErrorMessage = &RetryError{
 					Message: "RetryError",
 				}
-				errHandler = NewErrorReturnHandler(SampleErrorHandler(testErrorMessage), mockReceiver, SampleHandler())
-				err := errHandler(ctx, settler, message)
+				errHandler = NewErrorReturnHandler(SampleErrorHandler(testErrorMessage), mockReceiver, sampleHandler.SampleHandler())
+				err := errHandler(ctx, sampleSettler, message)
 				Expect(strings.Count(buf.String(), "ErrorReturnHandler: ")).To(Equal(3))
 				Expect(strings.Count(buf.String(), "ErrorReturnHandler: Handling RetryError")).To(Equal(1))
 				Expect(err).ToNot(BeNil())
@@ -159,8 +161,8 @@ var _ = Describe("ErrorHandler", func() {
 				testErrorMessage = &NonRetryError{
 					Message: "NonRetryError",
 				}
-				errHandler = NewErrorReturnHandler(SampleErrorHandler(testErrorMessage), mockReceiver, SampleHandler())
-				err := errHandler(ctx, settler, message)
+				errHandler = NewErrorReturnHandler(SampleErrorHandler(testErrorMessage), mockReceiver, sampleHandler.SampleHandler())
+				err := errHandler(ctx, sampleSettler, message)
 				Expect(strings.Count(buf.String(), "ErrorReturnHandler: ")).To(Equal(2))
 				Expect(strings.Count(buf.String(), "ErrorReturnHandler: Handling NonRetryError")).To(Equal(1))
 				Expect(err).ToNot(BeNil())
@@ -171,8 +173,8 @@ var _ = Describe("ErrorHandler", func() {
 				testErrorMessage = &NonRetryError{
 					Message: "NonRetryError",
 				}
-				errHandler = NewErrorReturnHandler(SampleErrorHandler(testErrorMessage), mockReceiver, SampleHandler())
-				err := errHandler(ctx, settler, message)
+				errHandler = NewErrorReturnHandler(SampleErrorHandler(testErrorMessage), mockReceiver, sampleHandler.SampleHandler())
+				err := errHandler(ctx, sampleSettler, message)
 				Expect(strings.Count(buf.String(), "ErrorReturnHandler: ")).To(Equal(3))
 				Expect(strings.Count(buf.String(), "ErrorReturnHandler: Handling NonRetryError")).To(Equal(1))
 				Expect(err).ToNot(BeNil())
@@ -181,8 +183,8 @@ var _ = Describe("ErrorHandler", func() {
 
 		It("should show different error in log", func() {
 			testErrorMessage = errors.New("Random error")
-			errHandler = NewErrorReturnHandler(SampleErrorHandler(testErrorMessage), mockReceiver, SampleHandler())
-			err := errHandler(ctx, settler, message)
+			errHandler = NewErrorReturnHandler(SampleErrorHandler(testErrorMessage), mockReceiver, sampleHandler.SampleHandler())
+			err := errHandler(ctx, sampleSettler, message)
 			Expect(strings.Count(buf.String(), "ErrorReturnHandler: ")).To(Equal(2))
 			Expect(strings.Count(buf.String(), "Error not recognized")).To(Equal(1))
 			Expect(err).ToNot(BeNil())
@@ -190,43 +192,9 @@ var _ = Describe("ErrorHandler", func() {
 	})
 })
 
-func SampleHandler() shuttle.HandlerFunc {
-	return func(ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage) {
-	}
-}
-
+// Need to re-create this here because the importing this would cause an import cycle error.
 func SampleErrorHandler(testErrorMessage error) ErrorHandlerFunc {
 	return func(ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage) error {
 		return testErrorMessage
 	}
-}
-
-type fakeMessageSettler struct{}
-
-func (f *fakeMessageSettler) AbandonMessage(ctx context.Context, message *azservicebus.ReceivedMessage, options *azservicebus.AbandonMessageOptions) error {
-	failureMessage := "failure_test"
-	if message.ContentType != nil && strings.Compare(*message.ContentType, failureMessage) == 0 {
-		return errors.New("settler error")
-	}
-	return nil
-}
-func (f *fakeMessageSettler) CompleteMessage(ctx context.Context, message *azservicebus.ReceivedMessage, options *azservicebus.CompleteMessageOptions) error {
-	failureMessage := "failure_test"
-	if message.ContentType != nil && strings.Compare(*message.ContentType, failureMessage) == 0 {
-		return errors.New("settler error")
-	}
-	return nil
-}
-func (f *fakeMessageSettler) DeadLetterMessage(ctx context.Context, message *azservicebus.ReceivedMessage, options *azservicebus.DeadLetterOptions) error {
-	failureMessage := "failure_test"
-	if message.ContentType != nil && strings.Compare(*message.ContentType, failureMessage) == 0 {
-		return errors.New("settler error")
-	}
-	return nil
-}
-func (f *fakeMessageSettler) DeferMessage(ctx context.Context, message *azservicebus.ReceivedMessage, options *azservicebus.DeferMessageOptions) error {
-	return nil
-}
-func (f *fakeMessageSettler) RenewMessageLock(ctx context.Context, message *azservicebus.ReceivedMessage, options *azservicebus.RenewMessageLockOptions) error {
-	return nil
 }

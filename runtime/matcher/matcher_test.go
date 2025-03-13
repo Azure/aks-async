@@ -8,6 +8,7 @@ import (
 
 	"github.com/Azure/aks-async/runtime/entity"
 	"github.com/Azure/aks-async/runtime/operation"
+	sampleOperation "github.com/Azure/aks-async/runtime/testutils/operation"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
@@ -21,7 +22,7 @@ var _ = Describe("Matcher", func() {
 	var (
 		matcher           *Matcher
 		operationName     string
-		longRunningOp     *LongRunning
+		sampleOp          *sampleOperation.SampleOperation
 		longRunningOpType reflect.Type
 		ctx               context.Context
 	)
@@ -29,14 +30,14 @@ var _ = Describe("Matcher", func() {
 	BeforeEach(func() {
 		matcher = NewMatcher()
 		operationName = "LongRunning"
-		longRunningOp = &LongRunning{}
-		longRunningOpType = reflect.TypeOf(longRunningOp).Elem()
+		sampleOp = &sampleOperation.SampleOperation{}
+		longRunningOpType = reflect.TypeOf(sampleOp).Elem()
 		ctx = context.Background()
 	})
 
 	Describe("Register and Get Operation", func() {
 		It("should register and retrieve the operation type", func() {
-			matcher.Register(operationName, longRunningOp)
+			matcher.Register(operationName, sampleOp)
 
 			retrieved, exists := matcher.Get(operationName)
 			Expect(exists).To(BeTrue(), fmt.Sprintf("Operation %s should exist in the matcher", operationName))
@@ -46,16 +47,17 @@ var _ = Describe("Matcher", func() {
 
 	Describe("Create Operation Instance", func() {
 		It("should create an instance of the registered operation type", func() {
-			matcher.Register(operationName, longRunningOp)
+			matcher.Register(operationName, sampleOp)
 
 			instance, err := matcher.CreateOperationInstance(operationName)
 			Expect(err).NotTo(HaveOccurred(), "Type not found")
 			Expect(reflect.TypeOf(instance).Elem()).To(Equal(longRunningOpType), "The created instance is not of the correct type")
 
 			_, _ = instance.InitOperation(ctx, operation.OperationRequest{})
-			_ = instance.Run(ctx)
-			if longOp, ok := instance.(*LongRunning); ok {
-				Expect(longOp.num).To(Equal(2), "Run did not complete successfully")
+			err = instance.Run(ctx)
+			Expect(err).To(BeNil())
+			if op, ok := instance.(*sampleOperation.SampleOperation); ok {
+				Expect(op.Num).To(Equal(1), "Run did not complete successfully")
 			} else {
 				Fail("Something went wrong casting the operation to LongRunning type.")
 			}
@@ -121,32 +123,4 @@ func NewTestEntity(latestOperationId string) *TestEntity {
 	return &TestEntity{
 		latestOperationId: latestOperationId,
 	}
-}
-
-// Example implementation of ApiOperation for LongRunning
-type LongRunning struct {
-	num int
-}
-
-var _ operation.ApiOperation = (*LongRunning)(nil)
-
-func (lr *LongRunning) InitOperation(ctx context.Context, req operation.OperationRequest) (operation.ApiOperation, error) {
-	fmt.Println("Initializing LongRunning operation with request")
-	lr.num = 1
-	return nil, nil
-}
-
-func (lr *LongRunning) GuardConcurrency(ctx context.Context, entityInstance entity.Entity) *entity.CategorizedError {
-	fmt.Println("Guarding concurrency in LongRunning operation")
-	return nil
-}
-
-func (lr *LongRunning) Run(ctx context.Context) error {
-	fmt.Println("Running LongRunning operation")
-	lr.num += 1
-	return nil
-}
-
-func (lr *LongRunning) GetOperationRequest() *operation.OperationRequest {
-	return &operation.OperationRequest{}
 }

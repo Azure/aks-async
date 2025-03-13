@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"log/slog"
-	"strings"
 	"testing"
 
 	"github.com/Azure/aks-async/mocks"
@@ -14,6 +13,8 @@ import (
 	handlerErrors "github.com/Azure/aks-async/runtime/handlers/errors"
 	"github.com/Azure/aks-async/runtime/matcher"
 	"github.com/Azure/aks-async/runtime/operation"
+	fakeOperation "github.com/Azure/aks-async/runtime/testutils/operation"
+	"github.com/Azure/aks-async/runtime/testutils/settler"
 	"github.com/Azure/aks-middleware/grpc/server/ctxlogger"
 	"github.com/Azure/azure-sdk-for-go/sdk/messaging/azservicebus"
 	"github.com/Azure/go-shuttle/v2"
@@ -29,12 +30,12 @@ func TestQoSErrorHandler(t *testing.T) {
 
 var _ = Describe("OperationHandler", func() {
 	var (
-		ctrl        *gomock.Controller
-		ctx         context.Context
-		buf         bytes.Buffer
-		operationId string
-		settler     shuttle.MessageSettler
-		message     *azservicebus.ReceivedMessage
+		ctrl          *gomock.Controller
+		ctx           context.Context
+		buf           bytes.Buffer
+		operationId   string
+		sampleSettler shuttle.MessageSettler
+		message       *azservicebus.ReceivedMessage
 
 		operationMatcher     *matcher.Matcher
 		operationName        string
@@ -50,8 +51,11 @@ var _ = Describe("OperationHandler", func() {
 		ctx = context.TODO()
 		ctx = ctxlogger.WithLogger(ctx, logger)
 
+		// Need to create an actual operation because if we use mocks the hooks will throw a nil
+		// pointer error since it's using new instance created by the matcher which the mock can't
+		// reference with EXPECT() calls.
 		operationName = "SampleOperation"
-		sampleOperation = &SampleOperation{}
+		sampleOperation = &fakeOperation.SampleOperation{}
 
 		operationMatcher = matcher.NewMatcher()
 		operationMatcher.Register(operationName, sampleOperation)
@@ -74,7 +78,7 @@ var _ = Describe("OperationHandler", func() {
 		message = &azservicebus.ReceivedMessage{
 			Body: marshalledOperation,
 		}
-		settler = &fakeMessageSettler{}
+		sampleSettler = &settler.SampleMessageSettler{}
 
 		operationHandler = NewOperationHandler(operationMatcher, nil, mockEntityController)
 	})
@@ -85,23 +89,22 @@ var _ = Describe("OperationHandler", func() {
 
 	Context("mock testing", func() {
 		It("should not throw an error", func() {
-
 			mockEntityController.EXPECT().GetEntity(gomock.Any(), gomock.Any()).Return(nil, nil)
-			err := operationHandler(ctx, settler, message)
+			err := operationHandler(ctx, sampleSettler, message)
 			Expect(err).To(BeNil())
 		})
 		It("should throw an error while unmarshalling", func() {
 			invalidMarshalledMessage := &azservicebus.ReceivedMessage{
 				Body: []byte(`invalid json`),
 			}
-			err := operationHandler(ctx, settler, invalidMarshalledMessage)
+			err := operationHandler(ctx, sampleSettler, invalidMarshalledMessage)
 			Expect(err).To(HaveOccurred())
 			Expect(err).To(MatchError(&handlerErrors.NonRetryError{Message: "Error unmarshalling message."}))
 		})
 		It("should throw an error while creating a hooked instance", func() {
 			operationMatcher = matcher.NewMatcher()
 			operationHandler = NewOperationHandler(operationMatcher, nil, mockEntityController)
-			err := operationHandler(ctx, settler, message)
+			err := operationHandler(ctx, sampleSettler, message)
 			Expect(err).To(HaveOccurred())
 			Expect(err).To(MatchError(&handlerErrors.NonRetryError{Message: "Error creating operation instance."}))
 		})
@@ -114,13 +117,13 @@ var _ = Describe("OperationHandler", func() {
 			Expect(err).To(BeNil())
 
 			message.Body = marshalledOperation
-			err = operationHandler(ctx, settler, message)
+			err = operationHandler(ctx, sampleSettler, message)
 			Expect(err).ToNot(BeNil())
 		})
 		It("should throw an error in EntityController", func() {
 			randomError := errors.New("Random error")
 			mockEntityController.EXPECT().GetEntity(gomock.Any(), gomock.Any()).Return(nil, randomError)
-			err := operationHandler(ctx, settler, message)
+			err := operationHandler(ctx, sampleSettler, message)
 			Expect(err).ToNot(BeNil())
 		})
 		It("should throw an error while GuardConcurrency", func() {
@@ -133,7 +136,7 @@ var _ = Describe("OperationHandler", func() {
 			message.Body = marshalledOperation
 
 			mockEntityController.EXPECT().GetEntity(gomock.Any(), gomock.Any()).Return(nil, nil)
-			ce := operationHandler(ctx, settler, message)
+			ce := operationHandler(ctx, sampleSettler, message)
 			Expect(ce).ToNot(BeNil())
 		})
 		It("should throw an error while Run", func() {
@@ -146,87 +149,15 @@ var _ = Describe("OperationHandler", func() {
 
 			message.Body = marshalledOperation
 			mockEntityController.EXPECT().GetEntity(gomock.Any(), gomock.Any()).Return(nil, nil)
-			err = operationHandler(ctx, settler, message)
+			err = operationHandler(ctx, sampleSettler, message)
 			Expect(err).ToNot(BeNil())
 		})
 		It("should throw an error while Settling", func() {
 			failureContentType := "failure_test"
 			message.ContentType = &failureContentType
 			mockEntityController.EXPECT().GetEntity(gomock.Any(), gomock.Any()).Return(nil, nil)
-			err := operationHandler(ctx, settler, message)
+			err := operationHandler(ctx, sampleSettler, message)
 			Expect(err).ToNot(BeNil())
 		})
 	})
 })
-
-// Need to create an actual operation because if we use mocks the hooks will throw a nil
-// pointer error since it's using new instance created by the matcher which the mock can't
-// reference with EXPECT() calls.
-// Sample operation
-var _ operation.ApiOperation = &SampleOperation{}
-
-type SampleOperation struct {
-	opReq operation.OperationRequest
-	num   int
-}
-
-func (l *SampleOperation) InitOperation(ctx context.Context, opReq operation.OperationRequest) (operation.ApiOperation, error) {
-	if opReq.OperationId == "1" {
-		return nil, errors.New("No OperationId")
-	}
-	l.opReq = opReq
-	l.num = 1
-	return nil, nil
-}
-
-func (l *SampleOperation) GuardConcurrency(ctx context.Context, entityInstance entity.Entity) *entity.CategorizedError {
-	if l.opReq.OperationId == "2" {
-		ce := &entity.CategorizedError{Err: errors.New("Incorrect OperationId")}
-		return ce
-	}
-	return nil
-}
-
-func (l *SampleOperation) Run(ctx context.Context) error {
-	if l.opReq.OperationId == "3" {
-		return errors.New("Incorrect OperationId")
-	}
-	return nil
-}
-
-func (l *SampleOperation) GetOperationRequest() *operation.OperationRequest {
-	return &l.opReq
-}
-
-func SampleHandler() shuttle.HandlerFunc {
-	return func(ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage) {
-	}
-}
-
-func SampleErrorHandler(testErrorMessage error) handlerErrors.ErrorHandlerFunc {
-	return func(ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage) error {
-		return testErrorMessage
-	}
-}
-
-type fakeMessageSettler struct{}
-
-func (f *fakeMessageSettler) AbandonMessage(ctx context.Context, message *azservicebus.ReceivedMessage, options *azservicebus.AbandonMessageOptions) error {
-	return nil
-}
-func (f *fakeMessageSettler) CompleteMessage(ctx context.Context, message *azservicebus.ReceivedMessage, options *azservicebus.CompleteMessageOptions) error {
-	failureMessage := "failure_test"
-	if message.ContentType != nil && strings.Compare(*message.ContentType, failureMessage) == 0 {
-		return errors.New("settler error")
-	}
-	return nil
-}
-func (f *fakeMessageSettler) DeadLetterMessage(ctx context.Context, message *azservicebus.ReceivedMessage, options *azservicebus.DeadLetterOptions) error {
-	return nil
-}
-func (f *fakeMessageSettler) DeferMessage(ctx context.Context, message *azservicebus.ReceivedMessage, options *azservicebus.DeferMessageOptions) error {
-	return nil
-}
-func (f *fakeMessageSettler) RenewMessageLock(ctx context.Context, message *azservicebus.ReceivedMessage, options *azservicebus.RenewMessageLockOptions) error {
-	return nil
-}
