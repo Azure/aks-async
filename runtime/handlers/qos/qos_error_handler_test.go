@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 
 	"log/slog"
 	"strings"
@@ -42,19 +43,24 @@ var _ = Describe("QoSErrorHandler", func() {
 		message = &azservicebus.ReceivedMessage{
 			Body: marshalledOperation,
 		}
-		handler = NewQosErrorHandler(SampleErrorHandler())
 	})
 
-	Context("mock testing", func() {
-		It("should handle the dead-letter queue message correctly", func() {
-			handler(ctx, settler, message)
-			Expect(strings.Count(buf.String(), "QoS: ")).To(Equal(3))
-		})
+	It("should have right count of logs", func() {
+		handler = NewQosErrorHandler(SampleErrorHandler(nil))
+		handler(ctx, settler, message)
+		Expect(strings.Count(buf.String(), "QoSErrorHandler: ")).To(Equal(1))
+	})
+
+	It("should log error in next handler", func() {
+		err := errors.New("Random error")
+		handler = NewQosErrorHandler(SampleErrorHandler(err))
+		handler(ctx, settler, message)
+		Expect(strings.Count(buf.String(), "QoSErrorHandler: ")).To(Equal(2))
 	})
 })
 
-func SampleErrorHandler() handlerError.ErrorHandlerFunc {
+func SampleErrorHandler(testError error) handlerError.ErrorHandlerFunc {
 	return func(ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage) error {
-		return nil
+		return testError
 	}
 }

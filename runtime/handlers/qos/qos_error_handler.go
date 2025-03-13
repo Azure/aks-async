@@ -14,16 +14,15 @@ import (
 func NewQosErrorHandler(errHandler errors.ErrorHandlerFunc) shuttle.HandlerFunc {
 	return func(ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage) {
 		logger := ctxlogger.GetLogger(ctx)
+
 		start := time.Now()
 		err := errHandler.Handle(ctx, settler, message)
 		t := time.Now()
 		elapsed := t.Sub(start)
-		logger.Info("QoS: Operation started at: " + start.String())
-		logger.Info("QoS: Operation processed at: " + t.String())
-		logger.Info("QoS: Operation took " + elapsed.String() + " to process.")
+		logger.Info("QoSErrorHandler: Operation started at: " + start.String() + ", processed at: " + t.String() + ", and processed in: " + elapsed.String())
 
 		if err != nil {
-			logger.Error("QoS: Error ocurred in previousHandler: " + err.Error())
+			logger.Error("QoSErrorHandler: Error ocurred in previousHandler: " + err.Error())
 		}
 	}
 }
