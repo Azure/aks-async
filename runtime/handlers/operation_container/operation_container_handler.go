@@ -28,6 +28,7 @@ func NewOperationContainerHandler(errHandler errors.ErrorHandlerFunc, operationC
 			return nil
 		}
 
+		//TODO(mheberling): Update this to not retry, since the service itself should retry if it faces an error not us.
 		var updateOperationStatusRequest *oc.UpdateOperationStatusRequest
 		// If the operation is picked up immediately from the service bus, while the operationContainer is still putting the
 		// operation into the hcp and operations databases, this step might fail if both databases have not been updated.
