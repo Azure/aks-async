@@ -27,15 +27,23 @@ func NewErrorHandler(errHandler ErrorHandlerFunc, receiver sb.ReceiverInterface,
 		if err != nil {
 			logger := ctxlogger.GetLogger(ctx)
 			logger.Error("ErrorHandler: Handling error: " + err.Error())
+
+			var actionErr error
 			switch err.(type) {
 			case *NonRetryError:
 				logger.Info("ErrorHandler: Handling NonRetryError.")
-				nonRetryOperationError(ctx, settler, message)
+				actionErr = nonRetryOperationError(ctx, settler, message)
+				if actionErr != nil {
+					logger.Error("ErrorHandler: " + actionErr.Error())
+				}
 			case *RetryError:
 				logger.Info("ErrorHandler: Handling RetryError.")
-				retryOperationError(receiver, ctx, settler, message)
+				actionErr = retryOperationError(receiver, ctx, settler, message)
+				if actionErr != nil {
+					logger.Error("ErrorHandler: " + actionErr.Error())
+				}
 			default:
-				logger.Info("Error handled: " + err.Error())
+				logger.Info("ErrorHandler: Error not recognized: " + err.Error())
 			}
 		}
 
@@ -51,16 +59,24 @@ func NewErrorReturnHandler(errHandler ErrorHandlerFunc, receiver sb.ReceiverInte
 		err := errHandler.Handle(ctx, settler, message)
 		if err != nil {
 			logger := ctxlogger.GetLogger(ctx)
-			logger.Error("ErrorHandler: Handling error: " + err.Error())
+			logger.Error("ErrorReturnHandler: Handling error: " + err.Error())
+
+			var actionErr error
 			switch err.(type) {
 			case *NonRetryError:
-				logger.Info("ErrorHandler: Handling NonRetryError.")
-				nonRetryOperationError(ctx, settler, message)
+				logger.Info("ErrorReturnHandler: Handling NonRetryError.")
+				actionErr = nonRetryOperationError(ctx, settler, message)
+				if actionErr != nil {
+					logger.Error("ErrorReturnHandler: " + actionErr.Error())
+				}
 			case *RetryError:
-				logger.Info("ErrorHandler: Handling RetryError.")
-				retryOperationError(receiver, ctx, settler, message)
+				logger.Info("ErrorReturnHandler: Handling RetryError.")
+				actionErr = retryOperationError(receiver, ctx, settler, message)
+				if actionErr != nil {
+					logger.Error("ErrorReturnHandler: " + actionErr.Error())
+				}
 			default:
-				logger.Info("Error handled: " + err.Error())
+				logger.Info("ErrorReturnHandler: Error not recognized: " + err.Error())
 			}
 		}
 
@@ -78,7 +94,8 @@ func nonRetryOperationError(ctx context.Context, settler shuttle.MessageSettler,
 
 	err := settler.DeadLetterMessage(ctx, message, nil)
 	if err != nil {
-		logger.Error("Unable to deadletter message.")
+		logger.Error("Unable to deadletter message: " + err.Error())
+		return err
 	}
 
 	return nil
