@@ -10,7 +10,12 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-type Sample struct {
+func TestOperationRequestMarshall(t *testing.T) {
+	RegisterFailHandler(Fail)
+	RunSpecs(t, "OperationRequest Suite")
+}
+
+type SampleExtension struct {
 	Message string
 	Num     int
 }
@@ -18,7 +23,7 @@ type Sample struct {
 var _ = Describe("OperationRequest", func() {
 	var (
 		expirationTime      *timestamppb.Timestamp
-		extension           *Sample
+		extension           *SampleExtension
 		operation           *OperationRequest
 		marshalledOperation []byte
 		err                 error
@@ -27,7 +32,7 @@ var _ = Describe("OperationRequest", func() {
 
 	BeforeEach(func() {
 		expirationTime = timestamppb.New(time.Now().Add(1 * time.Hour))
-		extension = &Sample{
+		extension = &SampleExtension{
 			Message: "Hello",
 			Num:     1,
 		}
@@ -45,18 +50,13 @@ var _ = Describe("OperationRequest", func() {
 	})
 
 	It("should set and get the extension correctly", func() {
-		s := &Sample{}
+		s := &SampleExtension{}
 		err = body.SetExtension(s)
 		Expect(err).NotTo(HaveOccurred(), "SetExtension errored")
 
-		ext, ok := body.Extension.(*Sample)
+		ext, ok := body.Extension.(*SampleExtension)
 		Expect(ok).To(BeTrue(), "Extension is not of type *Sample")
 		Expect(ext.Message).To(Equal("Hello"), "Extension data does not match")
 		Expect(ext.Num).To(Equal(1), "Extension data does not match")
 	})
 })
-
-func TestOperationRequestMarshall(t *testing.T) {
-	RegisterFailHandler(Fail)
-	RunSpecs(t, "OperationRequest Suite")
-}

@@ -9,6 +9,8 @@ import (
 	"strings"
 
 	operation "github.com/Azure/aks-async/runtime/operation"
+	sampleHandler "github.com/Azure/aks-async/runtime/testutils/handler"
+	"github.com/Azure/aks-async/runtime/testutils/settler"
 	"github.com/Azure/aks-middleware/grpc/server/ctxlogger"
 	"github.com/Azure/azure-sdk-for-go/sdk/messaging/azservicebus"
 	"github.com/Azure/go-shuttle/v2"
@@ -18,12 +20,12 @@ import (
 
 var _ = Describe("QoSHandler", func() {
 	var (
-		ctx     context.Context
-		buf     bytes.Buffer
-		settler shuttle.MessageSettler
-		message *azservicebus.ReceivedMessage
-		handler shuttle.HandlerFunc
-		req     operation.OperationRequest
+		ctx           context.Context
+		buf           bytes.Buffer
+		sampleSettler shuttle.MessageSettler
+		message       *azservicebus.ReceivedMessage
+		handler       shuttle.HandlerFunc
+		req           operation.OperationRequest
 	)
 
 	BeforeEach(func() {
@@ -33,7 +35,7 @@ var _ = Describe("QoSHandler", func() {
 		ctx = context.TODO()
 		ctx = ctxlogger.WithLogger(ctx, logger)
 
-		settler = &fakeMessageSettler{}
+		sampleSettler = &settler.SampleMessageSettler{}
 		marshalledOperation, err := json.Marshal(req)
 		if err != nil {
 			return
@@ -41,11 +43,11 @@ var _ = Describe("QoSHandler", func() {
 		message = &azservicebus.ReceivedMessage{
 			Body: marshalledOperation,
 		}
-		handler = NewQoSHandler(SampleHandler())
+		handler = NewQoSHandler(sampleHandler.SampleHandler())
 	})
 
 	It("should have right number of logs", func() {
-		handler(ctx, settler, message)
+		handler(ctx, sampleSettler, message)
 		Expect(strings.Count(buf.String(), "QoSHandler: ")).To(Equal(1))
 	})
 })
