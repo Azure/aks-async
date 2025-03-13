@@ -68,12 +68,14 @@ func NewErrorReturnHandler(errHandler ErrorHandlerFunc, receiver sb.ReceiverInte
 				actionErr = nonRetryOperationError(ctx, settler, message)
 				if actionErr != nil {
 					logger.Error("ErrorReturnHandler: " + actionErr.Error())
+					return actionErr
 				}
 			case *RetryError:
 				logger.Info("ErrorReturnHandler: Handling RetryError.")
 				actionErr = retryOperationError(receiver, ctx, settler, message)
 				if actionErr != nil {
 					logger.Error("ErrorReturnHandler: " + actionErr.Error())
+					return actionErr
 				}
 			default:
 				logger.Info("ErrorReturnHandler: Error not recognized: " + err.Error())
