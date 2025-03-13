@@ -65,26 +65,3 @@ var _ = Describe("LogHandler", func() {
 		Expect(strings.Count(buf.String(), "Error unmarshalling message")).To(Equal(1))
 	})
 })
-
-// func SampleHandler() shuttle.HandlerFunc {
-// 	return func(ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage) {
-// 	}
-// }
-//
-// type fakeMessageSettler struct{}
-//
-// func (f *fakeMessageSettler) AbandonMessage(ctx context.Context, message *azservicebus.ReceivedMessage, options *azservicebus.AbandonMessageOptions) error {
-// 	return nil
-// }
-// func (f *fakeMessageSettler) CompleteMessage(ctx context.Context, message *azservicebus.ReceivedMessage, options *azservicebus.CompleteMessageOptions) error {
-// 	return nil
-// }
-// func (f *fakeMessageSettler) DeadLetterMessage(ctx context.Context, message *azservicebus.ReceivedMessage, options *azservicebus.DeadLetterOptions) error {
-// 	return nil
-// }
-// func (f *fakeMessageSettler) DeferMessage(ctx context.Context, message *azservicebus.ReceivedMessage, options *azservicebus.DeferMessageOptions) error {
-// 	return nil
-// }
-// func (f *fakeMessageSettler) RenewMessageLock(ctx context.Context, message *azservicebus.ReceivedMessage, options *azservicebus.RenewMessageLockOptions) error {
-// 	return nil
-// }

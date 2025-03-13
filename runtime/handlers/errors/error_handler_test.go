@@ -192,7 +192,7 @@ var _ = Describe("ErrorHandler", func() {
 	})
 })
 
-// Need to re-create this here because the importing this would cause an import cycle error.
+// Need to re-create this here because importing it from testutils would cause an import cycle error.
 func SampleErrorHandler(testErrorMessage error) ErrorHandlerFunc {
 	return func(ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage) error {
 		return testErrorMessage
