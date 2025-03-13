@@ -11,6 +11,11 @@ import (
 	. "github.com/onsi/gomega"
 )
 
+func TestHooks(t *testing.T) {
+	RegisterFailHandler(Fail)
+	RunSpecs(t, "Hooks Suite")
+}
+
 // Sample hook
 type RunOnlyHooks struct {
 	HookedApiOperation
@@ -64,8 +69,3 @@ var _ = Describe("Hooks", func() {
 		}
 	})
 })
-
-func TestHooks(t *testing.T) {
-	RegisterFailHandler(Fail)
-	RunSpecs(t, "Hooks Suite")
-}

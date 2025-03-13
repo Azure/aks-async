@@ -75,7 +75,7 @@ var _ = Describe("OperationContainerHandler", func() {
 				OperationId: operationId,
 			}
 		})
-		Context("no error", func() {
+		Context("normal flow", func() {
 			It("should not throw an error", func() {
 				operationContainerHandler = NewOperationContainerHandler(sampleErrorHandler.SampleErrorHandler(nil), operationContainerClient)
 
@@ -85,7 +85,7 @@ var _ = Describe("OperationContainerHandler", func() {
 				err := operationContainerHandler(ctx, sampleSettler, message)
 				Expect(err).To(BeNil())
 			})
-			It("should handle error", func() {
+			It("should handle oprerationContainer client returning an error", func() {
 				operationContainerHandler = NewOperationContainerHandler(sampleErrorHandler.SampleErrorHandler(nil), operationContainerClient)
 
 				updateOperationStatusRequest.Status = oc.Status_COMPLETED
@@ -149,7 +149,7 @@ var _ = Describe("OperationContainerHandler", func() {
 					err := operationContainerHandler(ctx, sampleSettler, message)
 					Expect(err).ToNot(BeNil())
 				})
-				It("should handle error in update while handling a NonRetryError", func() {
+				It("should handle client error while handling a NonRetryError", func() {
 					nonRetryError := &handlerErrors.NonRetryError{
 						Message: "NonRetryError!",
 					}
@@ -165,7 +165,7 @@ var _ = Describe("OperationContainerHandler", func() {
 					Expect(err.Error()).To(Equal(returnedErr.Error()))
 				})
 			})
-			Context("NonRetryError", func() {
+			Context("RetryError", func() {
 				It("should handle a RetryError", func() {
 					retryError := &handlerErrors.RetryError{
 						Message: "RetryError!",
@@ -179,7 +179,7 @@ var _ = Describe("OperationContainerHandler", func() {
 					err := operationContainerHandler(ctx, sampleSettler, message)
 					Expect(err).ToNot(BeNil())
 				})
-				It("should handle an error while handling a RetryError", func() {
+				It("should handle client error while handling a RetryError", func() {
 					retryError := &handlerErrors.RetryError{
 						Message: "RetryError!",
 					}

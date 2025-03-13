@@ -16,6 +16,7 @@ import (
 	"github.com/Azure/aks-async/runtime/operation"
 )
 
+// TODO(mheberling): In several of the returned errors, we're losing the original error message and will have to dig through the logs. Update this.
 func NewOperationHandler(matcher *matcher.Matcher, hooks []hooks.BaseOperationHooksInterface, entityController ec.EntityController) errors.ErrorHandlerFunc {
 	return func(ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage) error {
 		logger := ctxlogger.GetLogger(ctx)
