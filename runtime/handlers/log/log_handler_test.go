@@ -50,11 +50,18 @@ var _ = Describe("LogHandler", func() {
 		handler = NewLogHandler(logger, SampleHandler())
 	})
 
-	Context("mock testing", func() {
-		It("should handle the dead-letter queue message correctly", func() {
-			handler(ctx, settler, message)
-			Expect(strings.Count(buf.String(), "LogHandler: ")).To(Equal(2))
-		})
+	It("should log correctly", func() {
+		handler(ctx, settler, message)
+		Expect(strings.Count(buf.String(), "LogHandler: ")).To(Equal(2))
+	})
+	It("should throw an error while unmarshalling", func() {
+		invalidMarshalledMessage := &azservicebus.ReceivedMessage{
+			Body: []byte(`invalid json`),
+		}
+
+		handler(ctx, settler, invalidMarshalledMessage)
+		Expect(strings.Count(buf.String(), "LogHandler: ")).To(Equal(3))
+		Expect(strings.Count(buf.String(), "Error unmarshalling message")).To(Equal(1))
 	})
 })
 

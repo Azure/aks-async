@@ -41,13 +41,11 @@ var _ = Describe("QoSHandler", func() {
 		message = &azservicebus.ReceivedMessage{
 			Body: marshalledOperation,
 		}
-		handler = NewQoSHandler(logger, SampleHandler())
+		handler = NewQoSHandler(SampleHandler())
 	})
 
-	Context("mock testing", func() {
-		It("should handle the dead-letter queue message correctly", func() {
-			handler(ctx, settler, message)
-			Expect(strings.Count(buf.String(), "QoSHandler: ")).To(Equal(3))
-		})
+	It("should have right number of logs", func() {
+		handler(ctx, settler, message)
+		Expect(strings.Count(buf.String(), "QoSHandler: ")).To(Equal(1))
 	})
 })
