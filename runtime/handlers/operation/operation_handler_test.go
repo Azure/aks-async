@@ -13,7 +13,7 @@ import (
 	handlerErrors "github.com/Azure/aks-async/runtime/handlers/errors"
 	"github.com/Azure/aks-async/runtime/matcher"
 	"github.com/Azure/aks-async/runtime/operation"
-	fakeOperation "github.com/Azure/aks-async/runtime/testutils/operation"
+	sampleOperation "github.com/Azure/aks-async/runtime/testutils/operation"
 	"github.com/Azure/aks-async/runtime/testutils/settler"
 	"github.com/Azure/aks-middleware/grpc/server/ctxlogger"
 	"github.com/Azure/azure-sdk-for-go/sdk/messaging/azservicebus"
@@ -39,7 +39,7 @@ var _ = Describe("OperationHandler", func() {
 
 		operationMatcher     *matcher.Matcher
 		operationName        string
-		sampleOperation      operation.ApiOperation
+		sampleOp             operation.ApiOperation
 		mockEntityController *mocks.MockEntityController
 		operationHandler     handlerErrors.ErrorHandlerFunc
 	)
@@ -55,10 +55,10 @@ var _ = Describe("OperationHandler", func() {
 		// pointer error since it's using new instance created by the matcher which the mock can't
 		// reference with EXPECT() calls.
 		operationName = "SampleOperation"
-		sampleOperation = &fakeOperation.SampleOperation{}
+		sampleOp = &sampleOperation.SampleOperation{}
 
 		operationMatcher = matcher.NewMatcher()
-		operationMatcher.Register(operationName, sampleOperation)
+		operationMatcher.Register(operationName, sampleOp)
 
 		operationMatcher.RegisterEntity(operationName, func(latestOperationId string) entity.Entity {
 			return mocks.NewMockEntity(ctrl)
