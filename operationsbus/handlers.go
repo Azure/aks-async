@@ -104,18 +104,18 @@ func NewQosErrorHandler(errHandler ErrorHandlerFunc) shuttle.HandlerFunc {
 		err := errHandler.Handle(ctx, settler, message)
 		t := time.Now()
 		elapsed := t.Sub(start)
-		logger.Info("QoS: Operation started at: " + start.String())
-		logger.Info("QoS: Operation processed at: " + t.String())
-		logger.Info("QoS: Operation took " + elapsed.String() + " to process.")
+		logger.Info("QoS: Operation started at: " + start.String() + ". QoS: Operation processed at: " + t.String() + ". QoS: Operation took " + elapsed.String() + " to process.")
 
 		if err != nil {
 			logger.Error("QoS: Error ocurred in previousHandler: " + err.Error())
+		} else {
+			logger.Info("Operation processed successfully. No errors returned.")
 		}
 	}
 }
 
 // NewQoSHandler creates a new QoS handler with the provided logger.
-func NewQoSHandler(logger *slog.Logger, next shuttle.HandlerFunc) shuttle.HandlerFunc {
+func NewQosHandler(logger *slog.Logger, next shuttle.HandlerFunc) shuttle.HandlerFunc {
 	return func(ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage) {
 		if logger == nil {
 			logger = ctxlogger.GetLogger(ctx)
@@ -125,9 +125,7 @@ func NewQoSHandler(logger *slog.Logger, next shuttle.HandlerFunc) shuttle.Handle
 		next(ctx, settler, message)
 		t := time.Now()
 		elapsed := t.Sub(start)
-		logger.Info("QoSHandler: Operation started at: " + start.String())
-		logger.Info("QoSHandler: Operation processed at: " + t.String())
-		logger.Info("QoSHandler: Operation took " + elapsed.String() + " to process.")
+		logger.Info("QoS: Operation started at: " + start.String() + ". QoS: Operation processed at: " + t.String() + ". QoS: Operation took " + elapsed.String() + " to process.")
 	}
 }
 
@@ -195,29 +193,13 @@ func NewOperationContainerHandler(errHandler ErrorHandlerFunc, operationContaine
 			return nil
 		}
 
-		var updateOperationStatusRequest *oc.UpdateOperationStatusRequest
-		// If the operation is picked up immediately from the service bus, while the operationContainer is still putting the
-		// operation into the hcp and operations databases, this step might fail if both databases have not been updated.
-		// Allowing a couple of retries before fully failing the operation due to this error.
-		opInProgress := false
-		for i := 0; i < 5; i++ {
-			// err = operationContainer.OperationInProgress(ctx, body.OperationId)
-			updateOperationStatusRequest = &oc.UpdateOperationStatusRequest{
-				OperationId: body.OperationId,
-				Status:      oc.Status_IN_PROGRESS,
-			}
-			_, err = operationContainer.UpdateOperationStatus(ctx, updateOperationStatusRequest)
-			if err != nil {
-				logger.Error("OperationContainerHandler: Error setting operation in progress: " + err.Error())
-				logger.Info("Trying again.")
-			} else {
-				opInProgress = true
-				break
-			}
+		updateOperationStatusRequest := &oc.UpdateOperationStatusRequest{
+			OperationId: body.OperationId,
+			Status:      oc.Status_IN_PROGRESS,
 		}
-
-		if !opInProgress {
-			logger.Error("Operation was not able to be put in progress.")
+		_, err = operationContainer.UpdateOperationStatus(ctx, updateOperationStatusRequest)
+		if err != nil {
+			logger.Error("OperationContainerHandler: Error setting operation in progress: " + err.Error())
 			return err
 		}
 
@@ -362,7 +344,7 @@ func OperationHandler(matcher *Matcher, hooks []BaseOperationHooksInterface, ent
 		_, err = operation.InitOperation(ctx, body)
 		if err != nil {
 			logger.Error("Something went wrong initializing the operation.")
-			return &RetryError{Message: "Error setting operation In Progress"}
+			return err
 		}
 
 		//TODO(mheberling): Remove this after chatting usage is adopted in Guardrails
@@ -371,7 +353,7 @@ func OperationHandler(matcher *Matcher, hooks []BaseOperationHooksInterface, ent
 			entity, err = entityController.GetEntity(ctx, body)
 			if err != nil {
 				logger.Error("Something went wrong getting the entity.")
-				return &RetryError{Message: "Error getting operationEntity"}
+				return err
 			}
 		}
 
@@ -379,14 +361,14 @@ func OperationHandler(matcher *Matcher, hooks []BaseOperationHooksInterface, ent
 		ce := operation.GuardConcurrency(ctx, entity)
 		if err != nil {
 			logger.Error("Error calling GuardConcurrency: " + ce.Err.Error())
-			return &RetryError{Message: "Error guarding operation concurrency."}
+			return err
 		}
 
 		// 5. Call run on the operation
 		err = operation.Run(ctx)
 		if err != nil {
 			logger.Error("Something went wrong running the operation: " + err.Error())
-			return &RetryError{Message: "Error running operation."}
+			return err
 		}
 
 		// 6. Finish the message
