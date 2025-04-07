@@ -62,7 +62,18 @@ func TestHooks(t *testing.T) {
 	lro := &LongRunningOperation{}
 	matcher.Register("LongRunningOperation", lro)
 
-	opRequest := NewOperationRequest("LongRunningOperation", "v0.0.1", "1", "1", "Cluster", 0, nil, nil, "", nil)
+	opRequest := &OperationRequest{
+		OperationName:       "LongRunningOperation",
+		ApiVersion:          "v0.0.1",
+		RetryCount:          0,
+		OperationId:         "1",
+		EntityId:            "1",
+		EntityType:          "Cluster",
+		ExpirationTimestamp: nil,
+		Body:                nil,
+		HttpMethod:          "",
+		Extension:           nil,
+	}
 
 	marshalledOperation, err := json.Marshal(opRequest)
 	if err != nil {

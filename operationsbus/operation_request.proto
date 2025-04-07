@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package operationsbus;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/any.proto";
+
+option go_package = "operationsbus/operationrequest";
+
+message OperationRequest {
+    string operation_name = 1; // Name of the operation being processed. Used to match the ApiOperation with the right implementation.
+    string api_version = 2; // Specifies the version of the API the operation is associated with, ensuring compatibility.
+    int32 retry_count = 3; // Tracks the number of retries of the operation to prevent infinite looping or special logic around retries.
+    string operation_id = 4; // A unique identifier for the operation.
+    string entity_id = 5; // A unique identifier for the entity (resource) the operation is acting on, used with EntityType to ensure we have selected the right entity.
+    string entity_type = 6; // Specified the type of entity the operation is acting on, used with EntityId to ensure we have selected the right Entity.
+    google.protobuf.Timestamp expiration_timestamp = 7; // Defines when the operation should expire and prevent execution, should it have passed this date.
+    bytes body = 8; // Contains request payload or data needed for the operation in HTTP operations.
+    string http_method = 9; // Indicated the GGPT method if the operation requires HTTP-based communication.
+    google.protobuf.Any extension = 10; // An optional and flexible field to add any data the user may require.
+}

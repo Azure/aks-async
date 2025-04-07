@@ -20,6 +20,7 @@ func CreateProcessor(
 	customHandler shuttle.HandlerFunc,
 	processorOptions *shuttle.ProcessorOptions,
 	hooks []BaseOperationHooksInterface,
+	marshaler Marshaler,
 ) (*shuttle.Processor, error) {
 
 	if serviceBusReceiver == nil {
@@ -33,7 +34,7 @@ func CreateProcessor(
 	// Define the default handler chain
 	// Use the default handler if a custom handler is not provided
 	if customHandler == nil {
-		customHandler = DefaultHandlers(serviceBusReceiver, matcher, operationContainer, entityController, logger, hooks)
+		customHandler = DefaultHandlers(serviceBusReceiver, matcher, operationContainer, entityController, logger, hooks, marshaler)
 	}
 
 	if processorOptions == nil {
