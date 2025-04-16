@@ -1,14 +1,10 @@
-package operationsbus
+package operation
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"reflect"
 
-	sb "github.com/Azure/aks-async/servicebus"
-	"github.com/Azure/aks-middleware/grpc/server/ctxlogger"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -24,7 +20,7 @@ type OperationRequest struct {
 
 	// HTTP
 	Body       []byte // Contains request payload or data needed for the operation in HTTP operations.
-	HttpMethod string // Indicated the GGPT method if the operation requires HTTP-based communication.
+	HttpMethod string // Indicating the HTTP method if the operation requires HTTP-based communication.
 
 	Extension interface{} // An optional and flexible field to add any data the user may require.
 }
@@ -53,31 +49,6 @@ func NewOperationRequest(
 		HttpMethod:          httpMethod,
 		Extension:           extension,
 	}
-}
-
-// Generalized method to retry every operation. If the operation failed or hit an error at any stage, this method will be called after the panic is handled.
-func (opRequest *OperationRequest) Retry(ctx context.Context, sender sb.SenderInterface) error {
-	logger := ctxlogger.GetLogger(ctx)
-	logger.Info("Retrying the long running operation.")
-	logger.Info(fmt.Sprintf("Struct: %+v", opRequest))
-
-	opRequest.RetryCount++
-	logger.Info(fmt.Sprintf("Current retry: %d", opRequest.RetryCount))
-
-	marshalledOperation, err := json.Marshal(opRequest)
-	if err != nil {
-		logger.Error("Error marshalling operation: " + err.Error())
-		return err
-	}
-
-	logger.Info("Sending message to Service Bus")
-	err = sender.SendMessage(ctx, []byte(marshalledOperation))
-	if err != nil {
-		logger.Error("Something happened: " + err.Error())
-		return err
-	}
-
-	return nil
 }
 
 // SetExtension sets the Extension field to a new type and value, copying data if possible
@@ -110,7 +81,7 @@ func (opRequest *OperationRequest) SetExtension(newValue interface{}) error {
 		}
 	} else {
 		// Initialize with zero values if Extension is nil
-		newInstance.Set(reflect.Zero(newType))
+		return errors.New("No extension set for operation.")
 	}
 
 	// opRequest.ExtensionType = newType
