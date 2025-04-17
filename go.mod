@@ -9,6 +9,7 @@ require (
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.7.0
 	github.com/Azure/azure-sdk-for-go/sdk/messaging/azservicebus v1.7.1
 	github.com/Azure/go-shuttle/v2 v2.7.2
+	github.com/golang/protobuf v1.5.4
 	github.com/microsoft/go-mssqldb v1.7.2
 	go.uber.org/mock v0.5.0
 	google.golang.org/protobuf v1.36.3
