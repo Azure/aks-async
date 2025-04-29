@@ -110,7 +110,6 @@ func NewQosErrorHandler(errHandler ErrorHandlerFunc) shuttle.HandlerFunc {
 				"start_time", start.String(),
 				"end_time", t.String(),
 				"latency", elapsed.String(),
-				"error", err.Error(),
 			).Info("QoS: Operation processed successfully. No errors returned.")
 		}
 	}
@@ -127,7 +126,11 @@ func NewQosHandler(logger *slog.Logger, next shuttle.HandlerFunc) shuttle.Handle
 		next(ctx, settler, message)
 		t := time.Now()
 		elapsed := t.Sub(start)
-		logger.Info("QoS: Operation started at: " + start.String() + ". QoS: Operation processed at: " + t.String() + ". QoS: Operation took " + elapsed.String() + " to process.")
+		logger.With(
+			"start_time", start.String(),
+			"end_time", t.String(),
+			"latency", elapsed.String(),
+		).Error("QoS: Error ocurrent in next handler.")
 	}
 }
 
