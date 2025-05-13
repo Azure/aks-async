@@ -8,9 +8,7 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/messaging/azservicebus"
 )
 
-var _ ServiceBusClientInterface = &FakeServiceBusClient{}
-
-// In the future, support for multiple queues of messages might also be required.
+// TODO(mheberling): In the future, support for multiple queues of messages might also be required.
 type FakeServiceBusClient struct {
 	messages [][]byte
 	mu       sync.Mutex
@@ -34,8 +32,6 @@ func (f *FakeServiceBusClient) NewServiceBusSender(_ context.Context, _ string, 
 	}, nil
 }
 
-var _ SenderInterface = &FakeSender{}
-
 type FakeSender struct {
 	client *FakeServiceBusClient
 }
@@ -53,13 +49,11 @@ func (s *FakeSender) GetAzureSender() (*azservicebus.Sender, error) {
 	return nil, nil
 }
 
-var _ ReceiverInterface = &FakeReceiver{}
-
 type FakeReceiver struct {
 	client *FakeServiceBusClient
 }
 
-func (r *FakeReceiver) ReceiveMessage(_ context.Context, maxMessages int, _ *azservicebus.ReceiveMessagesOptions) ([]*azservicebus.ReceivedMessage, error) {
+func (r *FakeReceiver) ReceiveMessage(_ context.Context) ([]byte, error) {
 	r.client.mu.Lock()
 	defer r.client.mu.Unlock()
 
@@ -67,25 +61,9 @@ func (r *FakeReceiver) ReceiveMessage(_ context.Context, maxMessages int, _ *azs
 		return nil, errors.New("No messages available.")
 	}
 
-	// Determine the number of messages to return
-	numMessages := maxMessages
-	if len(r.client.messages) < maxMessages {
-		numMessages = len(r.client.messages)
-	}
-
-	rawMessages := r.client.messages[:numMessages]
-	r.client.messages = r.client.messages[numMessages:]
-
-	// Package each message into azservicebus.ReceivedMessage
-	var receivedMessages []*azservicebus.ReceivedMessage
-	for _, rawMessage := range rawMessages {
-		receivedMessage := &azservicebus.ReceivedMessage{
-			Body: rawMessage,
-		}
-		receivedMessages = append(receivedMessages, receivedMessage)
-	}
-
-	return receivedMessages, nil
+	message := r.client.messages[0]
+	r.client.messages = r.client.messages[1:]
+	return message, nil
 }
 
 func (s *FakeReceiver) GetAzureReceiver() (*azservicebus.Receiver, error) {

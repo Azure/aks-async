@@ -3,6 +3,7 @@ package database
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	log "log/slog"
 
@@ -10,13 +11,14 @@ import (
 	"github.com/microsoft/go-mssqldb/azuread"
 )
 
+// TODO(mheberling): Make interfaces like service bus to use other types of db.
 // Create a database connection using the database name, server, and port. Must be logged in to azure cli.
 func NewDbClient(ctx context.Context, server string, port int, database string) (*sql.DB, error) {
 	logger := ctxlogger.GetLogger(ctx)
-	logger.Info("Creating a database client.")
+	logger.Info("Creating a db client.")
 
-	// Build connection string.
-	connString := fmt.Sprintf("server=%s;port%d;database=%s;fedauth=ActiveDirectoryDefault;", server, port, database)
+	// Build connection string
+	connString := fmt.Sprintf("server=%s;port%d;database=%s;fedauth=ActiveDirectoryDefault;", server, port, database) // Working because we're logged into azure.
 
 	db, err := sql.Open(azuread.DriverName, connString)
 	if err != nil {
@@ -25,7 +27,6 @@ func NewDbClient(ctx context.Context, server string, port int, database string) 
 	}
 
 	// Pinging to check that we do have access.
-	logger.Info("Pinging database to ensure we have access.")
 	err = db.PingContext(ctx)
 	if err != nil {
 		logger.Error(err.Error())
@@ -40,7 +41,7 @@ func NewDbClient(ctx context.Context, server string, port int, database string) 
 // Create a dabatase connection using a connection string.
 func NewDbClientWithConnectionString(ctx context.Context, connectionstring string) (*sql.DB, error) {
 	logger := ctxlogger.GetLogger(ctx)
-	logger.Info("Creating a database client using a connection string.")
+	logger.Info("Creating a db client.")
 
 	db, err := sql.Open(azuread.DriverName, connectionstring)
 	if err != nil {
@@ -49,7 +50,6 @@ func NewDbClientWithConnectionString(ctx context.Context, connectionstring strin
 	}
 
 	// Pinging to check that we do have access.
-	logger.Info("Pinging database to ensure we have access.")
 	err = db.PingContext(ctx)
 	if err != nil {
 		logger.Error(err.Error())
@@ -61,10 +61,11 @@ func NewDbClientWithConnectionString(ctx context.Context, connectionstring strin
 	return db, nil
 }
 
+// TODO(mheberling): Change this to return something more digestible than sql.Rows?
 // Query the database, appropriate for "SELECT" methods.
 func QueryDb(ctx context.Context, db *sql.DB, query string, args ...interface{}) (*sql.Rows, error) {
 	logger := ctxlogger.GetLogger(ctx)
-	logger.Info("Querying database.")
+	logger.Info("Querying db.")
 	rows, err := db.QueryContext(ctx, query, args...)
 	if err != nil {
 		log.Info("Error executing query: " + query + ". With error: " + err.Error())
@@ -74,17 +75,10 @@ func QueryDb(ctx context.Context, db *sql.DB, query string, args ...interface{})
 	return rows, nil
 }
 
-type NoRowsAffectedError struct{}
-
-// Implementing the Error() method to satisfy the error interface
-func (e *NoRowsAffectedError) Error() string {
-	return fmt.Sprintf("Error in exec query: no rows were affected!")
-}
-
 // Execute a query for "INSERT", "UPDATE", or "DELETE" methods which affect rows.
 func ExecDb(ctx context.Context, db *sql.DB, query string, args ...interface{}) (sql.Result, error) {
 	logger := ctxlogger.GetLogger(ctx)
-	logger.Info("Executing query to database.")
+	logger.Info("Executing query to db.")
 	result, err := db.ExecContext(ctx, query, args...)
 	if err != nil {
 		log.Info("Error executing query: " + query + ". With error: " + err.Error())
@@ -93,7 +87,7 @@ func ExecDb(ctx context.Context, db *sql.DB, query string, args ...interface{}) 
 
 	if rows, err := result.RowsAffected(); rows == 0 {
 		log.Error("No rows were affected!")
-		return nil, &NoRowsAffectedError{}
+		return nil, errors.New("No rows were affected!")
 	} else if err != nil {
 		log.Error("Error checking the number of affected rows.")
 		return nil, err
