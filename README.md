@@ -50,7 +50,7 @@ sro := &ShortRunningOperation{}
 matcher.Register(lro.GetName(ctx), lro)
 matcher.Register(sro.GetName(ctx), sro)
 
-processor, err := operationsbus.CreateProcessor(serviceBusSender, serviceBusReceiver, matcher, operationContainer)
+processor, err := processor.CreateProcessor(receiver, matcher, operationContainerClient, entityController, logger, handler, nil, hooks)
 
 // Start processing the operations.
 err = asyncStruct.Processor.Start(ctx)
@@ -60,85 +60,59 @@ if err != nil {
 cancel()
 ```
 
-In order to create a new operation type, you will simply need to create a struct that is of implements the interface `APIOperation` and another struct representing the modified entity that implementes the `Entity` interface.
+In order to create a new operation type, you will simply need to create a struct that is of implements the interface `ApiOperation` and another struct representing the modified entity that implementes the `Entity` interface.
 
 Here's a quick example: 
 ```go
+// Example implementation of ApiOperation
+var _ operation.ApiOperation = &SampleOperation{}
 
-// LongrunningOperation.go
-var _ opbus.APIOperation = &LongRunningOperation{}
-
-type LongRunningOperation struct {
-	Name           string
-	Operation      opbus.OperationRequest
-	LroEntity      *LongRunningEntity
-	OperationId    string
-	EntityId       string
-	EntityType     string
-	Retries        int
-	ExpirationDate *timestamppb.Timestamp
+type SampleOperation struct {
+	opReq operation.OperationRequest
+	Num   int
 }
 
-func (lro *LongRunningOperation) Init(ctx context.Context, opRequest opbus.OperationRequest) (opbus.APIOperation, error) {
-	lro.Operation = opRequest
-	lro.Name = opRequest.OperationName
-	lro.OperationId = opRequest.OperationId
-	lro.EntityType = opRequest.EntityType
-	lro.EntityId = opRequest.EntityId
-	lro.Retries = opRequest.RetryCount
-	return nil, nil
-}
-
-func (lro *LongRunningOperation) Run(ctx context.Context) *opbus.Result {
-	logger := ctxlogger.GetLogger(ctx)
-	logger.Info("Running the long running operation!")
-
-	// Logic for running the operation
-	time.Sleep(20 * time.Second)
-	logger.Info("Finished running the long running operation.")
-
-	result := &opbus.Result{
-		HTTPCode: 200,
-		Message:  "Success",
+func (l *SampleOperation) InitOperation(ctx context.Context, opReq operation.OperationRequest) (operation.ApiOperation, error) {
+	if opReq.OperationId == "1" {
+		return nil, errors.New("No OperationId")
 	}
-	return result
+	l.opReq = opReq
+	l.Num = 1
+	return &l, nil
 }
 
-func (lro *LongRunningOperation) Guardconcurrency(ctx context.Context, entity opbus.Entity) (*opbus.CategorizedError, error) {
-	logger := ctxlogger.GetLogger(ctx)
-	logger.Info("Guarding concurrency for operation.")
-
-	// We will simply return true for now because we're not guarding against anything, but another user might need to.
-	if entity.GetLatestOperationID() == lro.OperationId {
-		return nil, nil
-	} else {
-		return nil, errors.New("Wrong operation running.")
+func (l *SampleOperation) GuardConcurrency(ctx context.Context, entityInstance entity.Entity) *entity.CategorizedError {
+	if l.opReq.OperationId == "2" {
+		ce := &entity.CategorizedError{Err: errors.New("Incorrect OperationId")}
+		return ce
 	}
+	return nil
 }
 
-func (lro *LongRunningOperation) GetName(ctx context.Context) string {
-	return "LongRunningOperation"
-}
-
-func (lro *LongRunningOperation) GetOperationRequest(context.Context) *opbus.OperationRequest {
-	return &lro.Operation
-}
-
-// LongRunningEntity.go
-var _ opbus.Entity = &LongRunningEntity{}
-
-type LongRunningEntity struct {
-	LastOperationId string
-}
-
-func NewLongRunningEntity(lastOperationId string) *LongRunningEntity {
-	return &LongRunningEntity{
-		LastOperationId: lastOperationId,
+func (l *SampleOperation) Run(ctx context.Context) error {
+	if l.opReq.OperationId == "3" {
+		return errors.New("Incorrect OperationId")
 	}
+	return nil
 }
 
-func (lre *LongRunningEntity) GetLatestOperationID() string {
-	return lre.LastOperationId
+func (l *SampleOperation) GetOperationRequest() *operation.OperationRequest {
+	return &l.opReq
+}
+
+// Example implementatin of Entity
+type TestEntity struct {
+	latestOperationId string
+}
+
+func (e *TestEntity) GetLatestOperationID() string {
+	return e.latestOperationId
+}
+
+func NewTestEntity(latestOperationId string) *TestEntity {
+	return &TestEntity{
+		latestOperationId: latestOperationId,
+	}
 }
 ```
 
@@ -196,4 +170,13 @@ err = sender.SendMessage(ctx, marshalledOperation)
 if err != nil {
     fmt.Println("Something happened: " + err.Error())
 }
+```
+
+## Util
+
+### Mock
+
+Run the following to create mocks of an interface, with a sample of the service bus interface:
+```bash
+mockgen -source=servicebus/servicebus_interface.go -destination=mocks/mock_service_bus.go -package=mocks
 ```
