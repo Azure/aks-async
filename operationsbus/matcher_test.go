@@ -27,8 +27,7 @@ func TestMatcher(t *testing.T) {
 	// Retrieve an instance of the type associated with the key operation
 	instance, err := matcher.CreateOperationInstance(operation)
 	if err != nil {
-		fmt.Println("Type not found")
-		return
+		t.Fatalf("Type not found")
 	}
 
 	// Check if the created element is of the correct type.
@@ -139,18 +138,18 @@ type LongRunning struct {
 
 var _ ApiOperation = (*LongRunning)(nil)
 
-func (lr *LongRunning) InitOperation(ctx context.Context, req OperationRequest) (ApiOperation, error) {
+func (lr *LongRunning) InitOperation(ctx context.Context, req OperationRequest) (ApiOperation, *AsyncError) {
 	fmt.Println("Initializing LongRunning operation with request")
 	lr.num = 1
 	return nil, nil
 }
 
-func (lr *LongRunning) GuardConcurrency(ctx context.Context, entity Entity) *CategorizedError {
+func (lr *LongRunning) GuardConcurrency(ctx context.Context, entity Entity) *AsyncError {
 	fmt.Println("Guarding concurrency in LongRunning operation")
-	return &CategorizedError{}
+	return &AsyncError{}
 }
 
-func (lr *LongRunning) Run(ctx context.Context) error {
+func (lr *LongRunning) Run(ctx context.Context) *AsyncError {
 	fmt.Println("Running LongRunning operation")
 	lr.num += 1
 	return nil
