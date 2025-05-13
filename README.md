@@ -50,7 +50,7 @@ sro := &ShortRunningOperation{}
 matcher.Register(lro.GetName(ctx), lro)
 matcher.Register(sro.GetName(ctx), sro)
 
-processor, err := opbus.CreateProcessor(receiver, matcher, operationContainerClient, entityController, logger, handler, nil, hooks)
+processor, err := processor.CreateProcessor(receiver, matcher, operationContainerClient, entityController, logger, handler, nil, hooks)
 
 // Start processing the operations.
 err = asyncStruct.Processor.Start(ctx)
@@ -78,7 +78,7 @@ func (l *SampleOperation) InitOperation(ctx context.Context, opReq operation.Ope
 	}
 	l.opReq = opReq
 	l.Num = 1
-	return nil, nil
+	return &l, nil
 }
 
 func (l *SampleOperation) GuardConcurrency(ctx context.Context, entityInstance entity.Entity) *entity.CategorizedError {
