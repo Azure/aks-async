@@ -5,5 +5,5 @@ import (
 )
 
 type EntityController interface {
-	GetEntity(context.Context, OperationRequest) (Entity, error)
+	GetEntity(context.Context, OperationRequest) (Entity, *AsyncError)
 }

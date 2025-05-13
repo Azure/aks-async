@@ -60,13 +60,13 @@ if err != nil {
 cancel()
 ```
 
-In order to create a new operation type, you will simply need to create a struct that is of implements the interface `APIOperation` and another struct representing the modified entity that implementes the `Entity` interface.
+In order to create a new operation type, you will simply need to create a struct that is of implements the interface `ApiOperation` and another struct representing the modified entity that implementes the `Entity` interface.
 
 Here's a quick example: 
 ```go
 
 // LongrunningOperation.go
-var _ opbus.APIOperation = &LongRunningOperation{}
+var _ opbus.ApiOperation = &LongRunningOperation{}
 
 type LongRunningOperation struct {
 	Name           string
@@ -79,7 +79,7 @@ type LongRunningOperation struct {
 	ExpirationDate *timestamppb.Timestamp
 }
 
-func (lro *LongRunningOperation) Init(ctx context.Context, opRequest opbus.OperationRequest) (opbus.APIOperation, error) {
+func (lro *LongRunningOperation) Init(ctx context.Context, opRequest opbus.OperationRequest) (opbus.APIOperation, *opbus.AsyncError) {
 	lro.Operation = opRequest
 	lro.Name = opRequest.OperationName
 	lro.OperationId = opRequest.OperationId
@@ -89,7 +89,7 @@ func (lro *LongRunningOperation) Init(ctx context.Context, opRequest opbus.Opera
 	return nil, nil
 }
 
-func (lro *LongRunningOperation) Run(ctx context.Context) *opbus.Result {
+func (lro *LongRunningOperation) Run(ctx context.Context) *opbus.AsyncError {
 	logger := ctxlogger.GetLogger(ctx)
 	logger.Info("Running the long running operation!")
 
@@ -97,14 +97,10 @@ func (lro *LongRunningOperation) Run(ctx context.Context) *opbus.Result {
 	time.Sleep(20 * time.Second)
 	logger.Info("Finished running the long running operation.")
 
-	result := &opbus.Result{
-		HTTPCode: 200,
-		Message:  "Success",
-	}
-	return result
+	return nil
 }
 
-func (lro *LongRunningOperation) Guardconcurrency(ctx context.Context, entity opbus.Entity) (*opbus.CategorizedError, error) {
+func (lro *LongRunningOperation) Guardconcurrency(ctx context.Context, entity opbus.Entity) (*opbus.AsyncError) {
 	logger := ctxlogger.GetLogger(ctx)
 	logger.Info("Guarding concurrency for operation.")
 
@@ -112,7 +108,7 @@ func (lro *LongRunningOperation) Guardconcurrency(ctx context.Context, entity op
 	if entity.GetLatestOperationID() == lro.OperationId {
 		return nil, nil
 	} else {
-		return nil, errors.New("Wrong operation running.")
+        return nil, &opbus.AsyncError{Message: "Wrong operationId."}
 	}
 }
 
