@@ -101,15 +101,11 @@ func (sb *ServiceBus) NewServiceBusSender(ctx context.Context, queue string, opt
 	return serviceBusSender, nil
 }
 
-func (s *ServiceBusSender) SendMessage(ctx context.Context, message []byte) error {
+func (s *ServiceBusSender) SendMessage(ctx context.Context, message *azservicebus.Message) error {
 	logger := ctxlogger.GetLogger(ctx)
 	logger.Info("Sending message through service bus sender.")
 
-	packagedMessage := &azservicebus.Message{
-		Body: message,
-	}
-
-	err := s.Sender.SendMessage(ctx, packagedMessage, nil)
+	err := s.Sender.SendMessage(ctx, message, nil)
 	if err != nil {
 		logger.Error("Error Sending message")
 		return err
@@ -135,7 +131,7 @@ func (s *ServiceBusReceiver) GetAzureReceiver() (*azservicebus.Receiver, error) 
 	}
 }
 
-func (r *ServiceBusReceiver) ReceiveMessage(ctx context.Context) ([]byte, error) {
+func (r *ServiceBusReceiver) ReceiveMessage(ctx context.Context) ([]*azservicebus.ReceivedMessage, error) {
 	logger := ctxlogger.GetLogger(ctx)
 	logger.Info("Receiving message")
 
@@ -145,17 +141,5 @@ func (r *ServiceBusReceiver) ReceiveMessage(ctx context.Context) ([]byte, error)
 		return nil, err
 	}
 
-	var body []byte
-	for _, message := range messages {
-		body = message.Body
-		logger.Info("%s\n" + string(body))
-
-		err = r.Receiver.CompleteMessage(ctx, message, nil)
-		if err != nil {
-			logger.Info("Error completing message!")
-			return nil, err
-		}
-	}
-
-	return body, nil
+	return messages, nil
 }

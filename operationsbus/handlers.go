@@ -48,35 +48,35 @@ func DefaultHandlers(
 	entityController EntityController,
 	logger *slog.Logger,
 	hooks []BaseOperationHooksInterface,
-	marshaler Marshaler,
+	marshaller shuttle.Marshaller,
 ) shuttle.HandlerFunc {
 
 	// Lock renewal settings
 	lockRenewalInterval := 10 * time.Second
 	lockRenewalOptions := &shuttle.LockRenewalOptions{Interval: &lockRenewalInterval}
 
-	if marshaler == nil {
-		marshaler = &ProtoMarshaler{}
+	if marshaller == nil {
+		marshaller = &shuttle.DefaultProtoMarshaller{}
 	}
 
 	var errorHandler ErrorHandlerFunc
 	if operationContainer != nil {
 		errorHandler = NewOperationContainerHandler(
 			NewErrorReturnHandler(
-				OperationHandler(matcher, hooks, entityController, marshaler),
+				OperationHandler(matcher, hooks, entityController, marshaller),
 				serviceBusReceiver,
 				nil,
-				marshaler,
+				marshaller,
 			),
 			operationContainer,
-			marshaler,
+			marshaller,
 		)
 	} else {
 		errorHandler = NewErrorReturnHandler(
-			OperationHandler(matcher, hooks, entityController, marshaler),
+			OperationHandler(matcher, hooks, entityController, marshaller),
 			serviceBusReceiver,
 			nil,
-			marshaler,
+			marshaller,
 		)
 	}
 
@@ -90,7 +90,7 @@ func DefaultHandlers(
 				NewQosErrorHandler(
 					errorHandler,
 				),
-				marshaler,
+				marshaller,
 			),
 		),
 	)
@@ -132,7 +132,7 @@ func NewQoSHandler(logger *slog.Logger, next shuttle.HandlerFunc) shuttle.Handle
 }
 
 // An error handler that continues the normal shuttle.HandlerFunc handler chain.
-func NewErrorHandler(errHandler ErrorHandlerFunc, receiver sb.ReceiverInterface, next shuttle.HandlerFunc, marshaler Marshaler) shuttle.HandlerFunc {
+func NewErrorHandler(errHandler ErrorHandlerFunc, receiver sb.ReceiverInterface, next shuttle.HandlerFunc, marshaller shuttle.Marshaller) shuttle.HandlerFunc {
 	return func(ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage) {
 		err := errHandler.Handle(ctx, settler, message)
 		if err != nil {
@@ -141,10 +141,10 @@ func NewErrorHandler(errHandler ErrorHandlerFunc, receiver sb.ReceiverInterface,
 			switch err.(type) {
 			case *NonRetryError:
 				logger.Info("ErrorHandler: Handling NonRetryError.")
-				nonRetryOperationError(ctx, settler, message, marshaler)
+				nonRetryOperationError(ctx, settler, message, marshaller)
 			case *RetryError:
 				logger.Info("ErrorHandler: Handling RetryError.")
-				retryOperationError(receiver, ctx, settler, message, marshaler)
+				retryOperationError(receiver, ctx, settler, message, marshaller)
 			default:
 				logger.Info("Error handled: " + err.Error())
 			}
@@ -157,7 +157,7 @@ func NewErrorHandler(errHandler ErrorHandlerFunc, receiver sb.ReceiverInterface,
 }
 
 // An error handler that provides the error to the parent handler for logging.
-func NewErrorReturnHandler(errHandler ErrorHandlerFunc, receiver sb.ReceiverInterface, next shuttle.HandlerFunc, marshaler Marshaler) ErrorHandlerFunc {
+func NewErrorReturnHandler(errHandler ErrorHandlerFunc, receiver sb.ReceiverInterface, next shuttle.HandlerFunc, marshaller shuttle.Marshaller) ErrorHandlerFunc {
 	return func(ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage) error {
 		err := errHandler.Handle(ctx, settler, message)
 		if err != nil {
@@ -166,10 +166,10 @@ func NewErrorReturnHandler(errHandler ErrorHandlerFunc, receiver sb.ReceiverInte
 			switch err.(type) {
 			case *NonRetryError:
 				logger.Info("ErrorHandler: Handling NonRetryError.")
-				nonRetryOperationError(ctx, settler, message, marshaler)
+				nonRetryOperationError(ctx, settler, message, marshaller)
 			case *RetryError:
 				logger.Info("ErrorHandler: Handling RetryError.")
-				retryOperationError(receiver, ctx, settler, message, marshaler)
+				retryOperationError(receiver, ctx, settler, message, marshaller)
 			default:
 				logger.Info("Error handled: " + err.Error())
 			}
@@ -184,12 +184,12 @@ func NewErrorReturnHandler(errHandler ErrorHandlerFunc, receiver sb.ReceiverInte
 }
 
 // Handler for when the user uses the OperationContainer
-func NewOperationContainerHandler(errHandler ErrorHandlerFunc, operationContainer oc.OperationContainerClient, marshaler Marshaler) ErrorHandlerFunc {
+func NewOperationContainerHandler(errHandler ErrorHandlerFunc, operationContainer oc.OperationContainerClient, marshaller shuttle.Marshaller) ErrorHandlerFunc {
 	return func(ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage) error {
 		logger := ctxlogger.GetLogger(ctx)
 
 		var body OperationRequest
-		err := marshaler.Unmarshal(message.Body, &body)
+		err := marshaller.Unmarshal(message.Message(), &body)
 		if err != nil {
 			logger.Error("OperationContainerHandler: Error unmarshalling message: " + err.Error())
 			return nil
@@ -272,7 +272,7 @@ func NewOperationContainerHandler(errHandler ErrorHandlerFunc, operationContaine
 }
 
 // NewLogHandler creates a new log handler with the provided logger.
-func NewLogHandler(logger *slog.Logger, next shuttle.HandlerFunc, marshaler Marshaler) shuttle.HandlerFunc {
+func NewLogHandler(logger *slog.Logger, next shuttle.HandlerFunc, marshaller shuttle.Marshaller) shuttle.HandlerFunc {
 	return func(ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage) {
 		if logger == nil {
 			logger = ctxlogger.GetLogger(ctx)
@@ -285,7 +285,7 @@ func NewLogHandler(logger *slog.Logger, next shuttle.HandlerFunc, marshaler Mars
 		}
 
 		var body OperationRequest
-		err := marshaler.Unmarshal(message.Body, &body)
+		err := marshaller.Unmarshal(message.Message(), &body)
 		if err != nil {
 			logger.Error("LogHandler: Error unmarshalling message:" + err.Error())
 		}
@@ -296,12 +296,12 @@ func NewLogHandler(logger *slog.Logger, next shuttle.HandlerFunc, marshaler Mars
 	}
 }
 
-func nonRetryOperationError(ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage, marshaler Marshaler) error {
+func nonRetryOperationError(ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage, marshaller shuttle.Marshaller) error {
 	logger := ctxlogger.GetLogger(ctx)
 	logger.Info("Non Retry Operation Error.")
 
 	var body OperationRequest
-	err := marshaler.Unmarshal(message.Body, &body)
+	err := marshaller.Unmarshal(message.Message(), &body)
 	if err != nil {
 		logger.Error("Error calling ReceiveOperation: " + err.Error())
 		return err
@@ -313,7 +313,7 @@ func nonRetryOperationError(ctx context.Context, settler shuttle.MessageSettler,
 	return nil
 }
 
-func retryOperationError(receiver sb.ReceiverInterface, ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage, marshaler Marshaler) error {
+func retryOperationError(receiver sb.ReceiverInterface, ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage, marshaller shuttle.Marshaller) error {
 	logger := ctxlogger.GetLogger(ctx)
 	logger.Info("Abandoning message for retry.")
 
@@ -323,7 +323,7 @@ func retryOperationError(receiver sb.ReceiverInterface, ctx context.Context, set
 	}
 
 	var body OperationRequest
-	err = marshaler.Unmarshal(message.Body, &body)
+	err = marshaller.Unmarshal(message.Message(), &body)
 	if err != nil {
 		logger.Error("Error calling ReceiveOperation: " + err.Error())
 		return err
@@ -339,13 +339,13 @@ func retryOperationError(receiver sb.ReceiverInterface, ctx context.Context, set
 	return nil
 }
 
-func OperationHandler(matcher *Matcher, hooks []BaseOperationHooksInterface, entityController EntityController, marshaler Marshaler) ErrorHandlerFunc {
+func OperationHandler(matcher *Matcher, hooks []BaseOperationHooksInterface, entityController EntityController, marshaller shuttle.Marshaller) ErrorHandlerFunc {
 	return func(ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage) error {
 		logger := ctxlogger.GetLogger(ctx)
 
 		// 1. Unmarshall the operation
 		var body OperationRequest
-		err := marshaler.Unmarshal(message.Body, &body)
+		err := marshaller.Unmarshal(message.Message(), &body)
 		if err != nil {
 			logger.Error("Error calling unmarshalling message body: " + err.Error())
 			return &NonRetryError{Message: "Error unmarshalling message."}
