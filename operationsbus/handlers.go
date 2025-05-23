@@ -126,7 +126,7 @@ func NewQosErrorHandler(logger *slog.Logger, errHandler ErrorHandlerFunc) shuttl
 				"end_time", t.String(),
 				"latency", elapsed.String(),
 				"error", err.OriginalError.Error(),
-			).Error("QoS: Error ocurrent in next handler.")
+			).Error("QoS: Error occurred in next handler.")
 		} else {
 			logger.With(
 				"start_time", start.String(),
@@ -242,15 +242,15 @@ func NewOperationContainerHandler(errHandler ErrorHandlerFunc, operationContaine
 			logger.Info("OperationContainerHandler: Handling error: " + err.Error())
 			switch err.(type) {
 			case *NonRetryError:
-				// Cancel the operation
-				logger.Info("OperationContainerHandler: Setting operation as Cancelled.")
+				// Fail the operation
+				logger.Info("OperationContainerHandler: Setting operation as Failed.")
 				updateOperationStatusRequest = &oc.UpdateOperationStatusRequest{
 					OperationId: body.OperationId,
-					Status:      oc.Status_CANCELLED,
+					Status:      oc.Status_FAILED,
 				}
 				_, err = operationContainer.UpdateOperationStatus(ctx, updateOperationStatusRequest)
 				if err != nil {
-					errorMessage := "OperationContainerHandler: Something went wrong setting the operation as Cancelled" + err.Error()
+					errorMessage := "OperationContainerHandler: Something went wrong setting the operation as Failed" + err.Error()
 					logger.Error(errorMessage)
 					return &AsyncError{
 						OriginalError: err,
