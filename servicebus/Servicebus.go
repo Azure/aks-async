@@ -39,7 +39,7 @@ func CreateServiceBusClient(ctx context.Context, clientUrl string, credential az
 
 	client, err := azservicebus.NewClient(clientUrl, credential, options)
 	if err != nil {
-		logger.Error("Error getting client.")
+		logger.Error("Error getting client: " + err.Error())
 		return nil, err
 	}
 
@@ -57,7 +57,7 @@ func CreateServiceBusClientFromConnectionString(ctx context.Context, connectionS
 
 	client, err := azservicebus.NewClientFromConnectionString(connectionString, options)
 	if err != nil {
-		logger.Error("Error getting client.")
+		logger.Error("Error getting client: " + err.Error())
 		return nil, err
 	}
 
@@ -73,7 +73,7 @@ func (sb *ServiceBus) NewServiceBusReceiver(ctx context.Context, topicOrQueue st
 
 	receiver, err := sb.Client.NewReceiverForQueue(topicOrQueue, options)
 	if err != nil {
-		logger.Error("Error getting receiver.")
+		logger.Error("Error getting receiver: " + err.Error())
 		return nil, err
 	}
 
@@ -90,7 +90,7 @@ func (sb *ServiceBus) NewServiceBusSender(ctx context.Context, queue string, opt
 
 	sender, err := sb.Client.NewSender(queue, options)
 	if err != nil {
-		logger.Error("Error getting the sender")
+		logger.Error("Error getting the sender: " + err.Error())
 		return nil, err
 	}
 
@@ -107,7 +107,7 @@ func (s *ServiceBusSender) SendMessage(ctx context.Context, message *azservicebu
 
 	err := s.Sender.SendMessage(ctx, message, nil)
 	if err != nil {
-		logger.Error("Error Sending message")
+		logger.Error("Error Sending message: " + err.Error())
 		return err
 	}
 
@@ -137,7 +137,7 @@ func (r *ServiceBusReceiver) ReceiveMessage(ctx context.Context) ([]*azservicebu
 
 	messages, err := r.Receiver.ReceiveMessages(ctx, 1, nil)
 	if err != nil {
-		logger.Info("Error receiving message!")
+		logger.Info("Error receiving message: " + err.Error())
 		return nil, err
 	}
 

@@ -64,7 +64,7 @@ func (r *FakeReceiver) ReceiveMessage(_ context.Context) ([]*azservicebus.Receiv
 	message := r.client.messages[0]
 	r.client.messages = r.client.messages[1:]
 
-	receivedMessage := ConvertToReceivedMessage(message)
+	receivedMessage := convertToReceivedMessage(message)
 	return []*azservicebus.ReceivedMessage{receivedMessage}, nil
 }
 
@@ -72,7 +72,7 @@ func (s *FakeReceiver) GetAzureReceiver() (*azservicebus.Receiver, error) {
 	return nil, nil
 }
 
-func ConvertToReceivedMessage(msg *azservicebus.Message) *azservicebus.ReceivedMessage {
+func convertToReceivedMessage(msg *azservicebus.Message) *azservicebus.ReceivedMessage {
 	var messageID string
 	if msg.MessageID != nil {
 		messageID = *msg.MessageID
