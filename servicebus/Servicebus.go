@@ -39,7 +39,7 @@ func CreateServiceBusClient(ctx context.Context, clientUrl string, credential az
 
 	client, err := azservicebus.NewClient(clientUrl, credential, options)
 	if err != nil {
-		logger.Error("Error getting client.")
+		logger.Error("Error getting client: " + err.Error())
 		return nil, err
 	}
 
@@ -57,7 +57,7 @@ func CreateServiceBusClientFromConnectionString(ctx context.Context, connectionS
 
 	client, err := azservicebus.NewClientFromConnectionString(connectionString, options)
 	if err != nil {
-		logger.Error("Error getting client.")
+		logger.Error("Error getting client: " + err.Error())
 		return nil, err
 	}
 
@@ -73,7 +73,7 @@ func (sb *ServiceBus) NewServiceBusReceiver(ctx context.Context, topicOrQueue st
 
 	receiver, err := sb.Client.NewReceiverForQueue(topicOrQueue, options)
 	if err != nil {
-		logger.Error("Error getting receiver.")
+		logger.Error("Error getting receiver: " + err.Error())
 		return nil, err
 	}
 
@@ -90,7 +90,7 @@ func (sb *ServiceBus) NewServiceBusSender(ctx context.Context, queue string, opt
 
 	sender, err := sb.Client.NewSender(queue, options)
 	if err != nil {
-		logger.Error("Error getting the sender")
+		logger.Error("Error getting the sender: " + err.Error())
 		return nil, err
 	}
 
@@ -101,17 +101,13 @@ func (sb *ServiceBus) NewServiceBusSender(ctx context.Context, queue string, opt
 	return serviceBusSender, nil
 }
 
-func (s *ServiceBusSender) SendMessage(ctx context.Context, message []byte) error {
+func (s *ServiceBusSender) SendMessage(ctx context.Context, message *azservicebus.Message) error {
 	logger := ctxlogger.GetLogger(ctx)
 	logger.Info("Sending message through service bus sender.")
 
-	packagedMessage := &azservicebus.Message{
-		Body: message,
-	}
-
-	err := s.Sender.SendMessage(ctx, packagedMessage, nil)
+	err := s.Sender.SendMessage(ctx, message, nil)
 	if err != nil {
-		logger.Error("Error Sending message")
+		logger.Error("Error Sending message: " + err.Error())
 		return err
 	}
 
@@ -135,27 +131,15 @@ func (s *ServiceBusReceiver) GetAzureReceiver() (*azservicebus.Receiver, error) 
 	}
 }
 
-func (r *ServiceBusReceiver) ReceiveMessage(ctx context.Context) ([]byte, error) {
+func (r *ServiceBusReceiver) ReceiveMessage(ctx context.Context) ([]*azservicebus.ReceivedMessage, error) {
 	logger := ctxlogger.GetLogger(ctx)
 	logger.Info("Receiving message")
 
 	messages, err := r.Receiver.ReceiveMessages(ctx, 1, nil)
 	if err != nil {
-		logger.Info("Error receiving message!")
+		logger.Info("Error receiving message: " + err.Error())
 		return nil, err
 	}
 
-	var body []byte
-	for _, message := range messages {
-		body = message.Body
-		logger.Info("%s\n" + string(body))
-
-		err = r.Receiver.CompleteMessage(ctx, message, nil)
-		if err != nil {
-			logger.Info("Error completing message!")
-			return nil, err
-		}
-	}
-
-	return body, nil
+	return messages, nil
 }

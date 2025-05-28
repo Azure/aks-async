@@ -10,13 +10,13 @@ import (
 
 // TODO(mheberling): In the future, support for multiple queues of messages might also be required.
 type FakeServiceBusClient struct {
-	messages [][]byte
+	messages []*azservicebus.Message
 	mu       sync.Mutex
 }
 
 func NewFakeServiceBusClient() *FakeServiceBusClient {
 	return &FakeServiceBusClient{
-		messages: make([][]byte, 0),
+		messages: make([]*azservicebus.Message, 0),
 	}
 }
 
@@ -36,7 +36,7 @@ type FakeSender struct {
 	client *FakeServiceBusClient
 }
 
-func (s *FakeSender) SendMessage(_ context.Context, message []byte) error {
+func (s *FakeSender) SendMessage(_ context.Context, message *azservicebus.Message) error {
 	s.client.mu.Lock()
 	defer s.client.mu.Unlock()
 
@@ -53,7 +53,7 @@ type FakeReceiver struct {
 	client *FakeServiceBusClient
 }
 
-func (r *FakeReceiver) ReceiveMessage(_ context.Context) ([]byte, error) {
+func (r *FakeReceiver) ReceiveMessage(_ context.Context) ([]*azservicebus.ReceivedMessage, error) {
 	r.client.mu.Lock()
 	defer r.client.mu.Unlock()
 
@@ -63,9 +63,37 @@ func (r *FakeReceiver) ReceiveMessage(_ context.Context) ([]byte, error) {
 
 	message := r.client.messages[0]
 	r.client.messages = r.client.messages[1:]
-	return message, nil
+
+	receivedMessage := convertToReceivedMessage(message)
+	return []*azservicebus.ReceivedMessage{receivedMessage}, nil
 }
 
 func (s *FakeReceiver) GetAzureReceiver() (*azservicebus.Receiver, error) {
 	return nil, nil
+}
+
+func convertToReceivedMessage(msg *azservicebus.Message) *azservicebus.ReceivedMessage {
+	var messageID string
+	if msg.MessageID != nil {
+		messageID = *msg.MessageID
+	}
+
+	return &azservicebus.ReceivedMessage{
+		ApplicationProperties: msg.ApplicationProperties,
+		Body:                  msg.Body,
+		ContentType:           msg.ContentType,
+		CorrelationID:         msg.CorrelationID,
+		MessageID:             messageID,
+		PartitionKey:          msg.PartitionKey,
+		ReplyTo:               msg.ReplyTo,
+		ReplyToSessionID:      msg.ReplyToSessionID,
+		ScheduledEnqueueTime:  msg.ScheduledEnqueueTime,
+		SessionID:             msg.SessionID,
+		Subject:               msg.Subject,
+		TimeToLive:            msg.TimeToLive,
+		To:                    msg.To,
+
+		// The rest of the fields like LockToken, SequenceNumber, etc., are not present in Message
+		// and would need to be mocked or left as zero values if needed.
+	}
 }
