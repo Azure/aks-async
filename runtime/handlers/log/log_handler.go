@@ -17,6 +17,11 @@ func NewLogHandler(logger *slog.Logger, next shuttle.HandlerFunc, marshaller shu
 		if logger == nil {
 			logger = ctxlogger.GetLogger(ctx)
 		}
+		if marshaller == nil {
+			marshaller = &shuttle.DefaultProtoMarshaller{}
+		}
+
+		//TODO(mheberling): Why this???
 		newCtx := ctxlogger.WithLogger(ctx, logger)
 
 		logger.Info("LogHandler: Delivery count: " + fmt.Sprint(message.DeliveryCount))

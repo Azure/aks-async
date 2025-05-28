@@ -17,52 +17,6 @@ import (
 	"github.com/Azure/go-shuttle/v2"
 )
 
-// func DefaultHandlers(
-// 	serviceBusReceiver sb.ReceiverInterface,
-// 	matcher *matcher.Matcher,
-// 	operationContainer oc.OperationContainerClient,
-// 	entityController ec.EntityController,
-// 	logger *slog.Logger,
-// 	hooks []hooks.BaseOperationHooksInterface,
-// ) shuttle.HandlerFunc {
-//
-// 	// Lock renewal settings
-// 	lockRenewalInterval := 10 * time.Second
-// 	lockRenewalOptions := &shuttle.LockRenewalOptions{Interval: &lockRenewalInterval}
-//
-// 	var errorHandler errors.ErrorHandlerFunc
-// 	if operationContainer != nil {
-// 		errorHandler = och.NewOperationContainerHandler(
-// 			errors.NewErrorReturnHandler(
-// 				operation.NewOperationHandler(matcher, hooks, entityController),
-// 				serviceBusReceiver,
-// 				nil,
-// 			),
-// 			operationContainer,
-// 		)
-// 	} else {
-// 		errorHandler = errors.NewErrorReturnHandler(
-// 			operation.NewOperationHandler(matcher, hooks, entityController),
-// 			serviceBusReceiver,
-// 			nil,
-// 		)
-// 	}
-//
-// 	// Combine handlers into a single default handler
-// 	return shuttle.NewPanicHandler(
-// 		nil,
-// 		shuttle.NewRenewLockHandler(
-// 			lockRenewalOptions,
-// 			log.NewLogHandler(
-// 				logger,
-// 				qos.NewQosErrorHandler(
-// 					errorHandler,
-// 				),
-// 			),
-// 		),
-// 	)
-// }
-
 func DefaultHandlers(
 	serviceBusReceiver sb.ReceiverInterface,
 	matcher *matcher.Matcher,

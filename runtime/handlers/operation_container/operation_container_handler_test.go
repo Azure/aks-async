@@ -3,7 +3,6 @@ package operation
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"log/slog"
 	"strings"
@@ -37,6 +36,7 @@ var _ = Describe("OperationContainerHandler", func() {
 		sampleSettler            shuttle.MessageSettler
 		message                  *azservicebus.ReceivedMessage
 		operationContainerClient *ocMock.MockOperationContainerClient
+		marshaller               shuttle.Marshaller
 	)
 
 	BeforeEach(func() {
@@ -48,17 +48,27 @@ var _ = Describe("OperationContainerHandler", func() {
 
 		operationContainerClient = ocMock.NewMockOperationContainerClient(ctrl)
 		sampleSettler = &settler.SampleMessageSettler{}
-		operationId = "1"
+		operationId = "0"
 		req := &operation.OperationRequest{
-			OperationId: operationId,
+			OperationName:       "SampleOperation",
+			ApiVersion:          "v0.0.1",
+			OperationId:         operationId,
+			EntityId:            "1",
+			EntityType:          "Cluster",
+			RetryCount:          0,
+			ExpirationTimestamp: nil,
+			Body:                nil,
+			HttpMethod:          "",
+			Extension:           nil,
 		}
-		marshalledOperation, err := json.Marshal(req)
+
+		sampleSettler = &settler.SampleMessageSettler{}
+		marshaller = &shuttle.DefaultProtoMarshaller{}
+		marshalledMessage, err := marshaller.Marshal(req)
 		if err != nil {
 			return
 		}
-		message = &azservicebus.ReceivedMessage{
-			Body: marshalledOperation,
-		}
+		message = convertToReceivedMessage(marshalledMessage)
 	})
 
 	AfterEach(func() {
@@ -77,7 +87,7 @@ var _ = Describe("OperationContainerHandler", func() {
 		})
 		Context("normal flow", func() {
 			It("should not throw an error", func() {
-				operationContainerHandler = NewOperationContainerHandler(sampleErrorHandler.SampleErrorHandler(nil), operationContainerClient)
+				operationContainerHandler = NewOperationContainerHandler(sampleErrorHandler.SampleErrorHandler(nil), operationContainerClient, marshaller)
 
 				updateOperationStatusRequest.Status = oc.Status_COMPLETED
 				operationContainerClient.EXPECT().UpdateOperationStatus(ctx, gomock.Any()).Return(nil, nil)
@@ -86,7 +96,7 @@ var _ = Describe("OperationContainerHandler", func() {
 				Expect(err).To(BeNil())
 			})
 			It("should handle oprerationContainer client returning an error", func() {
-				operationContainerHandler = NewOperationContainerHandler(sampleErrorHandler.SampleErrorHandler(nil), operationContainerClient)
+				operationContainerHandler = NewOperationContainerHandler(sampleErrorHandler.SampleErrorHandler(nil), operationContainerClient, marshaller)
 
 				updateOperationStatusRequest.Status = oc.Status_COMPLETED
 				operationContainerClient.EXPECT().UpdateOperationStatus(ctx, gomock.Any()).Return(nil, nil)
@@ -100,7 +110,7 @@ var _ = Describe("OperationContainerHandler", func() {
 		})
 		Context("retries", func() {
 			It("should retry 5 times and fail", func() {
-				operationContainerHandler = NewOperationContainerHandler(sampleErrorHandler.SampleErrorHandler(nil), operationContainerClient)
+				operationContainerHandler = NewOperationContainerHandler(sampleErrorHandler.SampleErrorHandler(nil), operationContainerClient, marshaller)
 				updateOperationStatusRequest.Status = oc.Status_IN_PROGRESS
 
 				err := errors.New("Some database error.")
@@ -114,7 +124,7 @@ var _ = Describe("OperationContainerHandler", func() {
 				Expect(strings.Count(buf.String(), "Trying again")).To(Equal(5))
 			})
 			It("should retry 3 times and succeed", func() {
-				operationContainerHandler = NewOperationContainerHandler(sampleErrorHandler.SampleErrorHandler(nil), operationContainerClient)
+				operationContainerHandler = NewOperationContainerHandler(sampleErrorHandler.SampleErrorHandler(nil), operationContainerClient, marshaller)
 				updateOperationStatusRequest.Status = oc.Status_IN_PROGRESS
 
 				err := errors.New("Some database error.")
@@ -140,7 +150,7 @@ var _ = Describe("OperationContainerHandler", func() {
 					nonRetryError := &handlerErrors.NonRetryError{
 						Message: "NonRetryError!",
 					}
-					operationContainerHandler = NewOperationContainerHandler(sampleErrorHandler.SampleErrorHandler(nonRetryError), operationContainerClient)
+					operationContainerHandler = NewOperationContainerHandler(sampleErrorHandler.SampleErrorHandler(nonRetryError), operationContainerClient, marshaller)
 
 					operationContainerClient.EXPECT().UpdateOperationStatus(ctx, gomock.Any()).Return(nil, nil)
 
@@ -153,7 +163,7 @@ var _ = Describe("OperationContainerHandler", func() {
 					nonRetryError := &handlerErrors.NonRetryError{
 						Message: "NonRetryError!",
 					}
-					operationContainerHandler = NewOperationContainerHandler(sampleErrorHandler.SampleErrorHandler(nonRetryError), operationContainerClient)
+					operationContainerHandler = NewOperationContainerHandler(sampleErrorHandler.SampleErrorHandler(nonRetryError), operationContainerClient, marshaller)
 
 					operationContainerClient.EXPECT().UpdateOperationStatus(ctx, gomock.Any()).Return(nil, nil)
 
@@ -170,7 +180,7 @@ var _ = Describe("OperationContainerHandler", func() {
 					retryError := &handlerErrors.RetryError{
 						Message: "RetryError!",
 					}
-					operationContainerHandler = NewOperationContainerHandler(sampleErrorHandler.SampleErrorHandler(retryError), operationContainerClient)
+					operationContainerHandler = NewOperationContainerHandler(sampleErrorHandler.SampleErrorHandler(retryError), operationContainerClient, marshaller)
 
 					operationContainerClient.EXPECT().UpdateOperationStatus(ctx, gomock.Any()).Return(nil, nil)
 
@@ -183,7 +193,7 @@ var _ = Describe("OperationContainerHandler", func() {
 					retryError := &handlerErrors.RetryError{
 						Message: "RetryError!",
 					}
-					operationContainerHandler = NewOperationContainerHandler(sampleErrorHandler.SampleErrorHandler(retryError), operationContainerClient)
+					operationContainerHandler = NewOperationContainerHandler(sampleErrorHandler.SampleErrorHandler(retryError), operationContainerClient, marshaller)
 
 					operationContainerClient.EXPECT().UpdateOperationStatus(ctx, gomock.Any()).Return(nil, nil)
 
@@ -199,7 +209,7 @@ var _ = Describe("OperationContainerHandler", func() {
 				It("should handle a default", func() {
 					defaultError := errors.New("default error")
 
-					operationContainerHandler = NewOperationContainerHandler(sampleErrorHandler.SampleErrorHandler(defaultError), operationContainerClient)
+					operationContainerHandler = NewOperationContainerHandler(sampleErrorHandler.SampleErrorHandler(defaultError), operationContainerClient, marshaller)
 
 					operationContainerClient.EXPECT().UpdateOperationStatus(ctx, gomock.Any()).Return(nil, nil)
 
@@ -210,3 +220,29 @@ var _ = Describe("OperationContainerHandler", func() {
 		})
 	})
 })
+
+func convertToReceivedMessage(msg *azservicebus.Message) *azservicebus.ReceivedMessage {
+	var messageID string
+	if msg.MessageID != nil {
+		messageID = *msg.MessageID
+	}
+
+	return &azservicebus.ReceivedMessage{
+		ApplicationProperties: msg.ApplicationProperties,
+		Body:                  msg.Body,
+		ContentType:           msg.ContentType,
+		CorrelationID:         msg.CorrelationID,
+		MessageID:             messageID,
+		PartitionKey:          msg.PartitionKey,
+		ReplyTo:               msg.ReplyTo,
+		ReplyToSessionID:      msg.ReplyToSessionID,
+		ScheduledEnqueueTime:  msg.ScheduledEnqueueTime,
+		SessionID:             msg.SessionID,
+		Subject:               msg.Subject,
+		TimeToLive:            msg.TimeToLive,
+		To:                    msg.To,
+
+		// The rest of the fields like LockToken, SequenceNumber, etc., are not present in Message
+		// and would need to be mocked or left as zero values if needed.
+	}
+}
