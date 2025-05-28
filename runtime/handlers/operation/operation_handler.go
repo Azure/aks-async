@@ -2,7 +2,6 @@ package operation
 
 import (
 	"context"
-	"encoding/json"
 
 	"github.com/Azure/aks-middleware/grpc/server/ctxlogger"
 	"github.com/Azure/azure-sdk-for-go/sdk/messaging/azservicebus"
@@ -16,14 +15,13 @@ import (
 	"github.com/Azure/aks-async/runtime/operation"
 )
 
-// TODO(mheberling): In several of the returned errors, we're losing the original error message and will have to dig through the logs. Update this.
-func NewOperationHandler(matcher *matcher.Matcher, hooks []hooks.BaseOperationHooksInterface, entityController ec.EntityController) errors.ErrorHandlerFunc {
+func NewOperationHandler(matcher *matcher.Matcher, hooks []hooks.BaseOperationHooksInterface, entityController ec.EntityController, marshaller shuttle.Marshaller) errors.ErrorHandlerFunc {
 	return func(ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage) error {
 		logger := ctxlogger.GetLogger(ctx)
 
 		// 1. Unmarshall the operation
 		var body operation.OperationRequest
-		err := json.Unmarshal(message.Body, &body)
+		err := marshaller.Unmarshal(message.Message(), &body)
 		if err != nil {
 			logger.Error("Error calling unmarshalling message body: " + err.Error())
 			return &errors.NonRetryError{Message: "Error unmarshalling message: " + err.Error()}

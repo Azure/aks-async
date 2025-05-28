@@ -2,7 +2,6 @@ package operation
 
 import (
 	"context"
-	"encoding/json"
 	"math"
 	"math/rand/v2"
 	"strconv"
@@ -17,12 +16,12 @@ import (
 )
 
 // Handler for when the user uses the OperationContainer
-func NewOperationContainerHandler(errHandler errors.ErrorHandlerFunc, operationContainer oc.OperationContainerClient) errors.ErrorHandlerFunc {
+func NewOperationContainerHandler(errHandler errors.ErrorHandlerFunc, operationContainer oc.OperationContainerClient, marshaller shuttle.Marshaller) errors.ErrorHandlerFunc {
 	return func(ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage) error {
 		logger := ctxlogger.GetLogger(ctx)
 
 		var body operation.OperationRequest
-		err := json.Unmarshal(message.Body, &body)
+		err := marshaller.Unmarshal(message.Message(), &body)
 		if err != nil {
 			logger.Error("OperationContainerHandler: Error unmarshalling message: " + err.Error())
 			return nil

@@ -2,7 +2,6 @@ package log
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log/slog"
 
@@ -13,7 +12,7 @@ import (
 )
 
 // NewLogHandler creates a new log handler with the provided logger.
-func NewLogHandler(logger *slog.Logger, next shuttle.HandlerFunc) shuttle.HandlerFunc {
+func NewLogHandler(logger *slog.Logger, next shuttle.HandlerFunc, marshaller shuttle.Marshaller) shuttle.HandlerFunc {
 	return func(ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage) {
 		if logger == nil {
 			logger = ctxlogger.GetLogger(ctx)
@@ -26,7 +25,7 @@ func NewLogHandler(logger *slog.Logger, next shuttle.HandlerFunc) shuttle.Handle
 		}
 
 		var body operation.OperationRequest
-		err := json.Unmarshal(message.Body, &body)
+		err := marshaller.Unmarshal(message.Message(), &body)
 		if err != nil {
 			logger.Error("LogHandler: Error unmarshalling message:" + err.Error())
 		}
