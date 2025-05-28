@@ -59,6 +59,7 @@ var _ = Describe("Hooks", func() {
 		Expect(err).NotTo(HaveOccurred())
 	})
 
+	//TODO(mheberling): Add handling of errors in hooks.
 	It("should run hooks successfully", func() {
 		_ = hOperation.GuardConcurrency(ctx, nil)
 		_ = hOperation.Run(ctx)

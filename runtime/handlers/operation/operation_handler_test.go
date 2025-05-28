@@ -99,14 +99,14 @@ var _ = Describe("OperationHandler", func() {
 			}
 			err := operationHandler(ctx, sampleSettler, invalidMarshalledMessage)
 			Expect(err).To(HaveOccurred())
-			Expect(err).To(MatchError(&handlerErrors.NonRetryError{Message: "Error unmarshalling message."}))
+			Expect(err).To(MatchError(&handlerErrors.NonRetryError{Message: "Error unmarshalling message: invalid character 'i' looking for beginning of value"}))
 		})
 		It("should throw an error while creating a hooked instance", func() {
 			operationMatcher = matcher.NewMatcher()
 			operationHandler = NewOperationHandler(operationMatcher, nil, mockEntityController)
 			err := operationHandler(ctx, sampleSettler, message)
 			Expect(err).To(HaveOccurred())
-			Expect(err).To(MatchError(&handlerErrors.NonRetryError{Message: "Error creating operation instance."}))
+			Expect(err).To(MatchError(&handlerErrors.NonRetryError{Message: "Error creating operation instance: The ApiOperation doesn't exist in the map: SampleOperation"}))
 		})
 		It("should throw an error while InitOperation", func() {
 			req := &operation.OperationRequest{

@@ -28,7 +28,7 @@ func NewDbClient(ctx context.Context, server string, port int, database string) 
 	logger.Info("Pinging database to ensure we have access.")
 	err = db.PingContext(ctx)
 	if err != nil {
-		logger.Error(err.Error())
+		logger.Error("Error pinging database: " + err.Error())
 		return nil, err
 	} else {
 		logger.Info("Connected!")
@@ -52,7 +52,7 @@ func NewDbClientWithConnectionString(ctx context.Context, connectionstring strin
 	logger.Info("Pinging database to ensure we have access.")
 	err = db.PingContext(ctx)
 	if err != nil {
-		logger.Error(err.Error())
+		logger.Error("Error pinging database: " + err.Error())
 		return nil, err
 	} else {
 		logger.Info("Connected!")

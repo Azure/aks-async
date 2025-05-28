@@ -26,21 +26,21 @@ func NewOperationHandler(matcher *matcher.Matcher, hooks []hooks.BaseOperationHo
 		err := json.Unmarshal(message.Body, &body)
 		if err != nil {
 			logger.Error("Error calling unmarshalling message body: " + err.Error())
-			return &errors.NonRetryError{Message: "Error unmarshalling message."}
+			return &errors.NonRetryError{Message: "Error unmarshalling message: " + err.Error()}
 		}
 
 		// 2 Match it with the correct type of operation
 		operation, err := matcher.CreateHookedInstace(body.OperationName, hooks)
 		if err != nil {
 			logger.Error("Operation type doesn't exist in the matcher: " + err.Error())
-			return &errors.NonRetryError{Message: "Error creating operation instance."}
+			return &errors.NonRetryError{Message: "Error creating operation instance: " + err.Error()}
 		}
 
 		// 3. Init the operation with the information we have.
 		_, err = operation.InitOperation(ctx, body)
 		if err != nil {
-			logger.Error("Something went wrong initializing the operation.")
-			return &errors.RetryError{Message: "Error setting operation In Progress"}
+			logger.Error("Something went wrong initializing the operation: " + err.Error())
+			return &errors.RetryError{Message: "Error setting operation In Progress: " + err.Error()}
 		}
 
 		//TODO(mheberling): Remove this after usage is adopted in Guardrails
@@ -48,8 +48,8 @@ func NewOperationHandler(matcher *matcher.Matcher, hooks []hooks.BaseOperationHo
 		if entityController != nil {
 			operationEntity, err = entityController.GetEntity(ctx, body)
 			if err != nil {
-				logger.Error("Something went wrong getting the entity.")
-				return &errors.RetryError{Message: "Error getting operationEntity"}
+				logger.Error("Something went wrong getting the entity: " + err.Error())
+				return &errors.RetryError{Message: "Error getting operationEntity: " + err.Error()}
 			}
 		}
 
@@ -57,14 +57,14 @@ func NewOperationHandler(matcher *matcher.Matcher, hooks []hooks.BaseOperationHo
 		ce := operation.GuardConcurrency(ctx, operationEntity)
 		if ce != nil {
 			logger.Error("Error calling GuardConcurrency: " + ce.Err.Error())
-			return &errors.RetryError{Message: "Error guarding operation concurrency."}
+			return &errors.RetryError{Message: "Error guarding operation concurrency: " + ce.Err.Error()}
 		}
 
 		// 5. Call run on the operation
 		err = operation.Run(ctx)
 		if err != nil {
 			logger.Error("Something went wrong running the operation: " + err.Error())
-			return &errors.RetryError{Message: "Error running operation."}
+			return &errors.RetryError{Message: "Error running operation: " + err.Error()}
 		}
 
 		// 6. Finish the message
