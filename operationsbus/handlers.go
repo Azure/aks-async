@@ -152,7 +152,7 @@ func NewQosHandler(logger *slog.Logger, next shuttle.HandlerFunc) shuttle.Handle
 			"start_time", start.String(),
 			"end_time", t.String(),
 			"latency", elapsed.String(),
-		).Error("QoS: Error ocurrent in next handler.")
+		).Info("QoS: Handler processed.")
 	}
 }
 
