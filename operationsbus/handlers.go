@@ -224,7 +224,6 @@ func NewOperationContainerHandler(errHandler ErrorHandlerFunc, operationContaine
 			OperationId: body.OperationId,
 			Status:      oc.Status_IN_PROGRESS,
 		}
-		//TODO(mheberling): Will need to change the error type returned by OperationContainer here
 		_, err = operationContainer.UpdateOperationStatus(ctx, updateOperationStatusRequest)
 		if err != nil {
 			errorMessage := "OperationContainerHandler: Error setting operation in progress: " + err.Error()
@@ -413,6 +412,7 @@ func OperationHandler(matcher *Matcher, hooks []BaseOperationHooksInterface, ent
 		}
 
 		//TODO(mheberling): Remove this after chatting usage is adopted in Guardrails
+		//TODO(mheberling): Look at using pointers here instead of value since we're using proto.
 		var entity Entity
 		if entityController != nil {
 			entity, asyncErr = entityController.GetEntity(ctx, body)
