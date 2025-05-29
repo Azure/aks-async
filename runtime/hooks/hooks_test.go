@@ -4,7 +4,6 @@ import (
 	"context"
 	"testing"
 
-	// "github.com/Azure/aks-async/runtime/entity"
 	"github.com/Azure/aks-async/runtime/operation"
 	sampleOperation "github.com/Azure/aks-async/runtime/testutils/operation"
 	. "github.com/onsi/ginkgo/v2"
@@ -47,7 +46,18 @@ var _ = Describe("Hooks", func() {
 
 	BeforeEach(func() {
 		ctx = context.Background()
-		opRequest = operation.NewOperationRequest("SampleOperation", "v0.0.1", "0", "1", "Cluster", 0, nil, nil, "", nil)
+		opRequest = &operation.OperationRequest{
+			OperationName:       "SampleOperation",
+			ApiVersion:          "v0.0.1",
+			OperationId:         "0",
+			EntityId:            "1",
+			EntityType:          "Cluster",
+			RetryCount:          0,
+			ExpirationTimestamp: nil,
+			Body:                nil,
+			HttpMethod:          "",
+			Extension:           nil,
+		}
 		operationInstance = &sampleOperation.SampleOperation{}
 		runOnlyHooks = &RunOnlyHooks{}
 		hooksSlice = []BaseOperationHooksInterface{runOnlyHooks}
