@@ -12,7 +12,7 @@ type RunOnlyHooks struct {
 	HookedApiOperation
 }
 
-func (h *RunOnlyHooks) BeforeRun(ctx context.Context, op ApiOperation) error {
+func (h *RunOnlyHooks) BeforeRun(ctx context.Context, op ApiOperation) *AsyncError {
 	fmt.Println("This is the before internal run hook!")
 	if longOp, ok := (op).(*LongRunningOperation); ok {
 		longOp.num += 1
@@ -20,7 +20,7 @@ func (h *RunOnlyHooks) BeforeRun(ctx context.Context, op ApiOperation) error {
 	return nil
 }
 
-func (h *RunOnlyHooks) AfterRun(ctx context.Context, op ApiOperation, err error) error {
+func (h *RunOnlyHooks) AfterRun(ctx context.Context, op ApiOperation, err *AsyncError) *AsyncError {
 	fmt.Println("This is the after internal run hook!")
 	if longOp, ok := (op).(*LongRunningOperation); ok {
 		longOp.num += 1
@@ -36,18 +36,18 @@ type LongRunningOperation struct {
 	num   int
 }
 
-func (l *LongRunningOperation) Run(ctx context.Context) error {
-	return nil
-}
-
-func (l *LongRunningOperation) GuardConcurrency(ctx context.Context, entity Entity) *CategorizedError {
-	return nil
-}
-
-func (l *LongRunningOperation) InitOperation(ctx context.Context, opReq OperationRequest) (ApiOperation, error) {
+func (l *LongRunningOperation) InitOperation(ctx context.Context, opReq OperationRequest) (ApiOperation, *AsyncError) {
 	l.opReq = opReq
 	l.num = 1
 	return nil, nil
+}
+
+func (l *LongRunningOperation) GuardConcurrency(ctx context.Context, entity Entity) *AsyncError {
+	return nil
+}
+
+func (l *LongRunningOperation) Run(ctx context.Context) *AsyncError {
+	return nil
 }
 
 func (l *LongRunningOperation) GetOperationRequest() *OperationRequest {
@@ -99,9 +99,9 @@ func TestHooks(t *testing.T) {
 		OperationHooks: hooksSlice,
 	}
 
-	_, err = hOperation.InitOperation(ctx, body)
-	if err != nil {
-		t.Fatalf("Error initializing operation: " + err.Error())
+	_, asyncErr := hOperation.InitOperation(ctx, body)
+	if asyncErr != nil {
+		t.Fatalf("Error initializing operation: " + asyncErr.Error())
 	}
 
 	_ = hOperation.GuardConcurrency(ctx, nil)
@@ -127,9 +127,9 @@ func TestHooks(t *testing.T) {
 		t.Fatalf("Error creating instance of operation: " + err.Error())
 	}
 
-	_, err = hOperation.InitOperation(ctx, body)
-	if err != nil {
-		t.Fatalf("Error initializing operation: " + err.Error())
+	_, asyncErr = hOperation.InitOperation(ctx, body)
+	if asyncErr != nil {
+		t.Fatalf("Error initializing operation: " + asyncErr.Error())
 	}
 
 	_ = hOperation.GuardConcurrency(ctx, nil)
