@@ -287,7 +287,7 @@ func NewOperationContainerHandler(errHandler ErrorHandlerFunc, operationContaine
 			logger.Info("Setting Operation as Successful.")
 			updateOperationStatusRequest = &oc.UpdateOperationStatusRequest{
 				OperationId: body.OperationId,
-				Status:      oc.Status_COMPLETED,
+				Status:      oc.Status_SUCCEEDED,
 			}
 			_, err = operationContainer.UpdateOperationStatus(ctx, updateOperationStatusRequest)
 			if err != nil {
