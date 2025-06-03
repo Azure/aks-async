@@ -2,12 +2,9 @@ package operation
 
 import (
 	"context"
-	"math"
-	"math/rand/v2"
-	"strconv"
-	"time"
 
 	oc "github.com/Azure/OperationContainer/api/v1"
+	asyncErrors "github.com/Azure/aks-async/runtime/errors"
 	"github.com/Azure/aks-async/runtime/handlers/errors"
 	"github.com/Azure/aks-async/runtime/operation"
 	"github.com/Azure/aks-middleware/grpc/server/ctxlogger"
@@ -17,7 +14,7 @@ import (
 
 // Handler for when the user uses the OperationContainer
 func NewOperationContainerHandler(errHandler errors.ErrorHandlerFunc, operationContainer oc.OperationContainerClient, marshaller shuttle.Marshaller) errors.ErrorHandlerFunc {
-	return func(ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage) error {
+	return func(ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage) *asyncErrors.AsyncError {
 		logger := ctxlogger.GetLogger(ctx)
 
 		var body operation.OperationRequest
@@ -27,35 +24,20 @@ func NewOperationContainerHandler(errHandler errors.ErrorHandlerFunc, operationC
 			return nil
 		}
 
-		//TODO(mheberling): Update this to not retry, since the service itself should retry if it faces an error not us.
-		var updateOperationStatusRequest *oc.UpdateOperationStatusRequest
-		// If the operation is picked up immediately from the service bus, while the operationContainer is still putting the
-		// operation into the hcp and operations databases, this step might fail if both databases have not been updated.
-		// Allowing a couple of retries before fully failing the operation due to this error.
-		opInProgress := false
-		for i := 0; i < 5; i++ {
-			updateOperationStatusRequest = &oc.UpdateOperationStatusRequest{
-				OperationId: body.OperationId,
-				Status:      oc.Status_IN_PROGRESS,
-			}
-			_, err = operationContainer.UpdateOperationStatus(ctx, updateOperationStatusRequest)
-			if err != nil {
-				logger.Error("OperationContainerHandler: Error setting operation in progress: " + err.Error())
-				backoff := exponentialBackoff(i)
-				logger.Info("Trying again.")
-				logger.Info("Retry %d: backoff for %v\n", strconv.Itoa(i), backoff)
-				time.Sleep(backoff)
-			} else {
-				opInProgress = true
-				break
+		updateOperationStatusRequest := &oc.UpdateOperationStatusRequest{
+			OperationId: body.OperationId,
+			Status:      oc.Status_IN_PROGRESS,
+		}
+		_, err = operationContainer.UpdateOperationStatus(ctx, updateOperationStatusRequest)
+		if err != nil {
+			errorMessage := "OperationContainerHandler: Error setting operation in progress: " + err.Error()
+			logger.Error(errorMessage)
+			return &asyncErrors.AsyncError{
+				OriginalError: err,
+				Message:       errorMessage,
+				ErrorCode:     500,
 			}
 		}
-
-		if !opInProgress {
-			logger.Error("Operation was not able to be put in progress.")
-			return err
-		}
-
 		err = errHandler.Handle(ctx, settler, message)
 
 		if err != nil {
@@ -63,15 +45,20 @@ func NewOperationContainerHandler(errHandler errors.ErrorHandlerFunc, operationC
 			switch err.(type) {
 			case *errors.NonRetryError:
 				// Cancel the operation
-				logger.Info("OperationContainerHandler: Setting operation as Cancelled.")
+				logger.Info("OperationContainerHandler: Setting operation as Failed.")
 				updateOperationStatusRequest = &oc.UpdateOperationStatusRequest{
 					OperationId: body.OperationId,
-					Status:      oc.Status_CANCELLED,
+					Status:      oc.Status_FAILED,
 				}
-				_, updateErr := operationContainer.UpdateOperationStatus(ctx, updateOperationStatusRequest)
-				if updateErr != nil {
-					logger.Error("OperationContainerHandler: Something went wrong setting the operation as Cancelled" + err.Error())
-					return updateErr
+				_, err = operationContainer.UpdateOperationStatus(ctx, updateOperationStatusRequest)
+				if err != nil {
+					errorMessage := "OperationContainerHandler: Something went wrong setting the operation as Failed" + err.Error()
+					logger.Error(errorMessage)
+					return &asyncErrors.AsyncError{
+						OriginalError: err,
+						Message:       errorMessage,
+						ErrorCode:     500,
+					}
 				}
 			case *errors.RetryError:
 				// Set the operation as Pending
@@ -80,48 +67,43 @@ func NewOperationContainerHandler(errHandler errors.ErrorHandlerFunc, operationC
 					OperationId: body.OperationId,
 					Status:      oc.Status_PENDING,
 				}
-				_, updateErr := operationContainer.UpdateOperationStatus(ctx, updateOperationStatusRequest)
-				if updateErr != nil {
-					logger.Error("OperationContainerHandler: Something went wrong setting the operation as Pending:" + err.Error())
-					return updateErr
+				_, err = operationContainer.UpdateOperationStatus(ctx, updateOperationStatusRequest)
+				if err != nil {
+					errorMessage := "OperationContainerHandler: Something went wrong setting the operation as Pending:" + err.Error()
+					logger.Error(errorMessage)
+					return &asyncErrors.AsyncError{
+						OriginalError: err,
+						Message:       errorMessage,
+						ErrorCode:     500,
+					}
 				}
 			default:
-				logger.Info("OperationContainerHandler: Error type not recognized. Operation status not changed.")
+				errorMessage := "OperationContainerHandler: Error type not recognized. Operation status not changed."
+				logger.Info(errorMessage)
+				return &asyncErrors.AsyncError{
+					OriginalError: err,
+					Message:       errorMessage,
+					ErrorCode:     500,
+				}
 			}
 		} else {
-			logger.Info("Setting Operation as Successful.")
+			logger.Info("OperationContainerHandler: Setting Operation as Succeeded.")
 			updateOperationStatusRequest = &oc.UpdateOperationStatusRequest{
 				OperationId: body.OperationId,
-				Status:      oc.Status_COMPLETED,
+				Status:      oc.Status_SUCCEEDED,
 			}
 			_, updateErr := operationContainer.UpdateOperationStatus(ctx, updateOperationStatusRequest)
 			if updateErr != nil {
-				logger.Error("OperationContainerHandler: Something went wrong setting the operation as Completed: " + updateErr.Error())
-				return updateErr
+				errorMessage := "OperationContainerHandler: Something went wrong setting the operation as Completed:" + err.Error()
+				logger.Info(errorMessage)
+				return &asyncErrors.AsyncError{
+					OriginalError: err,
+					Message:       errorMessage,
+					ErrorCode:     500,
+				}
 			}
 		}
 
-		return err
+		return nil
 	}
-}
-
-// ExponentialBackoff calculates the backoff duration based on the retry count.
-func exponentialBackoff(retry int) time.Duration {
-	min := 100 * time.Millisecond
-	max := 10 * time.Second
-	factor := 2.0
-	jitter := 0.5
-
-	// Calculate exponential backoff with jitter
-	backoff := float64(min) * math.Pow(factor, float64(retry))
-	backoff = backoff * (1 + jitter*(rand.Float64()*2-1))
-
-	// Ensure the backoff is within the min and max bounds
-	if backoff > float64(max) {
-		backoff = float64(max)
-	} else if backoff < float64(min) {
-		backoff = float64(min)
-	}
-
-	return time.Duration(backoff)
 }

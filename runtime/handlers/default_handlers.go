@@ -62,6 +62,7 @@ func DefaultHandlers(
 			log.NewLogHandler(
 				logger,
 				qos.NewQosErrorHandler(
+					logger,
 					errorHandler,
 				),
 				marshaller,

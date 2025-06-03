@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"github.com/Azure/aks-async/runtime/entity"
+	asyncErrors "github.com/Azure/aks-async/runtime/errors"
 	"github.com/Azure/aks-async/runtime/operation"
 )
 
@@ -19,26 +20,26 @@ type SampleOperation struct {
 	Num   int
 }
 
-func (l *SampleOperation) InitOperation(ctx context.Context, opReq operation.OperationRequest) (operation.ApiOperation, error) {
+func (l *SampleOperation) InitOperation(ctx context.Context, opReq operation.OperationRequest) (operation.ApiOperation, *asyncErrors.AsyncError) {
 	if opReq.OperationId == "1" {
-		return nil, errors.New("No OperationId")
+		return nil, &asyncErrors.AsyncError{OriginalError: errors.New("No OperationId")}
 	}
 	l.opReq = opReq
 	l.Num = 1
 	return nil, nil
 }
 
-func (l *SampleOperation) GuardConcurrency(ctx context.Context, entityInstance entity.Entity) *entity.CategorizedError {
+func (l *SampleOperation) GuardConcurrency(ctx context.Context, entityInstance entity.Entity) *asyncErrors.AsyncError {
 	if l.opReq.OperationId == "2" {
-		ce := &entity.CategorizedError{Err: errors.New("Incorrect OperationId")}
-		return ce
+		err := &asyncErrors.AsyncError{OriginalError: errors.New("Incorrect OperationId")}
+		return err
 	}
 	return nil
 }
 
-func (l *SampleOperation) Run(ctx context.Context) error {
+func (l *SampleOperation) Run(ctx context.Context) *asyncErrors.AsyncError {
 	if l.opReq.OperationId == "3" {
-		return errors.New("Incorrect OperationId")
+		return &asyncErrors.AsyncError{OriginalError: errors.New("Incorrect OperationId")}
 	}
 	return nil
 }

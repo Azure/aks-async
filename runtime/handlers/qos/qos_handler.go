@@ -2,6 +2,7 @@ package qos
 
 import (
 	"context"
+	"log/slog"
 	"time"
 
 	"github.com/Azure/aks-middleware/grpc/server/ctxlogger"
@@ -10,14 +11,20 @@ import (
 )
 
 // NewQoSHandler creates a new QoS handler with the provided logger.
-func NewQoSHandler(next shuttle.HandlerFunc) shuttle.HandlerFunc {
+func NewQosHandler(logger *slog.Logger, next shuttle.HandlerFunc) shuttle.HandlerFunc {
 	return func(ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage) {
-		logger := ctxlogger.GetLogger(ctx)
+		if logger == nil {
+			logger = ctxlogger.GetLogger(ctx)
+		}
 
 		start := time.Now()
 		next(ctx, settler, message)
 		t := time.Now()
 		elapsed := t.Sub(start)
-		logger.Info("QoSHandler: Operation started at: " + start.String() + ", processed at: " + t.String() + ", and processed in: " + elapsed.String())
+		logger.With(
+			"start_time", start.String(),
+			"end_time", t.String(),
+			"latency", elapsed.String(),
+		).Info("QoS: Handler processed.")
 	}
 }

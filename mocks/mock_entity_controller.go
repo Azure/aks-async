@@ -14,6 +14,7 @@ import (
 	reflect "reflect"
 
 	entity "github.com/Azure/aks-async/runtime/entity"
+	errors "github.com/Azure/aks-async/runtime/errors"
 	operation "github.com/Azure/aks-async/runtime/operation"
 	gomock "go.uber.org/mock/gomock"
 )
@@ -43,11 +44,11 @@ func (m *MockEntityController) EXPECT() *MockEntityControllerMockRecorder {
 }
 
 // GetEntity mocks base method.
-func (m *MockEntityController) GetEntity(arg0 context.Context, arg1 operation.OperationRequest) (entity.Entity, error) {
+func (m *MockEntityController) GetEntity(arg0 context.Context, arg1 operation.OperationRequest) (entity.Entity, *errors.AsyncError) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetEntity", arg0, arg1)
 	ret0, _ := ret[0].(entity.Entity)
-	ret1, _ := ret[1].(error)
+	ret1, _ := ret[1].(*errors.AsyncError)
 	return ret0, ret1
 }
 

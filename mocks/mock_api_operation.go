@@ -14,6 +14,7 @@ import (
 	reflect "reflect"
 
 	entity "github.com/Azure/aks-async/runtime/entity"
+	errors "github.com/Azure/aks-async/runtime/errors"
 	operation "github.com/Azure/aks-async/runtime/operation"
 	gomock "go.uber.org/mock/gomock"
 )
@@ -57,10 +58,10 @@ func (mr *MockApiOperationMockRecorder) GetOperationRequest() *gomock.Call {
 }
 
 // GuardConcurrency mocks base method.
-func (m *MockApiOperation) GuardConcurrency(arg0 context.Context, arg1 entity.Entity) *entity.CategorizedError {
+func (m *MockApiOperation) GuardConcurrency(arg0 context.Context, arg1 entity.Entity) *errors.AsyncError {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GuardConcurrency", arg0, arg1)
-	ret0, _ := ret[0].(*entity.CategorizedError)
+	ret0, _ := ret[0].(*errors.AsyncError)
 	return ret0
 }
 
@@ -71,11 +72,11 @@ func (mr *MockApiOperationMockRecorder) GuardConcurrency(arg0, arg1 any) *gomock
 }
 
 // InitOperation mocks base method.
-func (m *MockApiOperation) InitOperation(arg0 context.Context, arg1 operation.OperationRequest) (operation.ApiOperation, error) {
+func (m *MockApiOperation) InitOperation(arg0 context.Context, arg1 operation.OperationRequest) (operation.ApiOperation, *errors.AsyncError) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "InitOperation", arg0, arg1)
 	ret0, _ := ret[0].(operation.ApiOperation)
-	ret1, _ := ret[1].(error)
+	ret1, _ := ret[1].(*errors.AsyncError)
 	return ret0, ret1
 }
 
@@ -86,10 +87,10 @@ func (mr *MockApiOperationMockRecorder) InitOperation(arg0, arg1 any) *gomock.Ca
 }
 
 // Run mocks base method.
-func (m *MockApiOperation) Run(arg0 context.Context) error {
+func (m *MockApiOperation) Run(arg0 context.Context) *errors.AsyncError {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Run", arg0)
-	ret0, _ := ret[0].(error)
+	ret0, _ := ret[0].(*errors.AsyncError)
 	return ret0
 }
 

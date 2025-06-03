@@ -112,7 +112,7 @@ func (mr *MockSenderInterfaceMockRecorder) GetAzureSender() *gomock.Call {
 }
 
 // SendMessage mocks base method.
-func (m *MockSenderInterface) SendMessage(ctx context.Context, message []byte) error {
+func (m *MockSenderInterface) SendMessage(ctx context.Context, message *azservicebus.Message) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SendMessage", ctx, message)
 	ret0, _ := ret[0].(error)
