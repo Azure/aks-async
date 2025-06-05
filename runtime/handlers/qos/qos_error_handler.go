@@ -35,7 +35,7 @@ func NewQosErrorHandler(logger *slog.Logger, errHandler errors.ErrorHandlerFunc)
 				"start_time", start.String(),
 				"end_time", t.String(),
 				"latency", elapsed.String(),
-			).Info("QoS: Operation processed successfully. No errors returned.")
+			).Info("QoS: Operation processed successfully.")
 		}
 	}
 }

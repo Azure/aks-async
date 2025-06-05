@@ -38,13 +38,13 @@ func NewOperationContainerHandler(errHandler errors.ErrorHandlerFunc, operationC
 				ErrorCode:     500,
 			}
 		}
-		err = errHandler.Handle(ctx, settler, message)
+		asyncErr := errHandler.Handle(ctx, settler, message)
 
-		if err != nil {
-			logger.Info("OperationContainerHandler: Handling error: " + err.Error())
-			switch err.(type) {
+		if asyncErr != nil {
+			logger.Info("OperationContainerHandler: Handling error: " + asyncErr.Error())
+			switch asyncErr.OriginalError.(type) {
 			case *errors.NonRetryError:
-				// Cancel the operation
+				// Fail the operation
 				logger.Info("OperationContainerHandler: Setting operation as Failed.")
 				updateOperationStatusRequest = &oc.UpdateOperationStatusRequest{
 					OperationId: body.OperationId,
@@ -55,7 +55,7 @@ func NewOperationContainerHandler(errHandler errors.ErrorHandlerFunc, operationC
 					errorMessage := "OperationContainerHandler: Something went wrong setting the operation as Failed" + err.Error()
 					logger.Error(errorMessage)
 					return &asyncErrors.AsyncError{
-						OriginalError: err,
+						OriginalError: asyncErr,
 						Message:       errorMessage,
 						ErrorCode:     500,
 					}
@@ -72,7 +72,7 @@ func NewOperationContainerHandler(errHandler errors.ErrorHandlerFunc, operationC
 					errorMessage := "OperationContainerHandler: Something went wrong setting the operation as Pending:" + err.Error()
 					logger.Error(errorMessage)
 					return &asyncErrors.AsyncError{
-						OriginalError: err,
+						OriginalError: asyncErr,
 						Message:       errorMessage,
 						ErrorCode:     500,
 					}
@@ -81,11 +81,12 @@ func NewOperationContainerHandler(errHandler errors.ErrorHandlerFunc, operationC
 				errorMessage := "OperationContainerHandler: Error type not recognized. Operation status not changed."
 				logger.Info(errorMessage)
 				return &asyncErrors.AsyncError{
-					OriginalError: err,
+					OriginalError: asyncErr,
 					Message:       errorMessage,
 					ErrorCode:     500,
 				}
 			}
+			return asyncErr
 		} else {
 			logger.Info("OperationContainerHandler: Setting Operation as Succeeded.")
 			updateOperationStatusRequest = &oc.UpdateOperationStatusRequest{
@@ -94,10 +95,10 @@ func NewOperationContainerHandler(errHandler errors.ErrorHandlerFunc, operationC
 			}
 			_, updateErr := operationContainer.UpdateOperationStatus(ctx, updateOperationStatusRequest)
 			if updateErr != nil {
-				errorMessage := "OperationContainerHandler: Something went wrong setting the operation as Completed:" + err.Error()
+				errorMessage := "OperationContainerHandler: Something went wrong setting the operation as Completed:" + updateErr.Error()
 				logger.Info(errorMessage)
 				return &asyncErrors.AsyncError{
-					OriginalError: err,
+					OriginalError: updateErr,
 					Message:       errorMessage,
 					ErrorCode:     500,
 				}

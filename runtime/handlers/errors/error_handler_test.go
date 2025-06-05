@@ -4,13 +4,16 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"strings"
 	"testing"
 
+	asyncError "github.com/Azure/aks-async/runtime/errors"
 	"github.com/Azure/aks-async/runtime/operation"
 	sampleHandler "github.com/Azure/aks-async/runtime/testutils/handler"
 	"github.com/Azure/aks-async/runtime/testutils/settler"
+	"github.com/Azure/aks-async/runtime/testutils/toolkit/convert"
 	"github.com/Azure/aks-middleware/grpc/server/ctxlogger"
 	"github.com/Azure/azure-sdk-for-go/sdk/messaging/azservicebus"
 	"github.com/Azure/go-shuttle/v2"
@@ -59,7 +62,7 @@ var _ = Describe("ErrorHandler", func() {
 		if err != nil {
 			return
 		}
-		message = convertToReceivedMessage(marshalledMessage)
+		message = convert.ConvertToReceivedMessage(marshalledMessage)
 	})
 
 	Context("Error handler", func() {
@@ -70,6 +73,7 @@ var _ = Describe("ErrorHandler", func() {
 		It("should do nothing if no error", func() {
 			handler = NewErrorHandler(SampleErrorHandler(nil), sampleHandler.SampleHandler(), marshaller)
 			handler(ctx, sampleSettler, message)
+			fmt.Println(buf.String())
 			Expect(strings.Count(buf.String(), "ErrorHandler: ")).To(Equal(0))
 		})
 
@@ -200,33 +204,10 @@ var _ = Describe("ErrorHandler", func() {
 
 // Need to re-create this here because importing it from testutils would cause an import cycle error.
 func SampleErrorHandler(testErrorMessage error) ErrorHandlerFunc {
-	return func(ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage) error {
-		return testErrorMessage
-	}
-}
-
-func convertToReceivedMessage(msg *azservicebus.Message) *azservicebus.ReceivedMessage {
-	var messageID string
-	if msg.MessageID != nil {
-		messageID = *msg.MessageID
-	}
-
-	return &azservicebus.ReceivedMessage{
-		ApplicationProperties: msg.ApplicationProperties,
-		Body:                  msg.Body,
-		ContentType:           msg.ContentType,
-		CorrelationID:         msg.CorrelationID,
-		MessageID:             messageID,
-		PartitionKey:          msg.PartitionKey,
-		ReplyTo:               msg.ReplyTo,
-		ReplyToSessionID:      msg.ReplyToSessionID,
-		ScheduledEnqueueTime:  msg.ScheduledEnqueueTime,
-		SessionID:             msg.SessionID,
-		Subject:               msg.Subject,
-		TimeToLive:            msg.TimeToLive,
-		To:                    msg.To,
-
-		// The rest of the fields like LockToken, SequenceNumber, etc., are not present in Message
-		// and would need to be mocked or left as zero values if needed.
+	return func(ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage) *asyncError.AsyncError {
+		if testErrorMessage != nil {
+			return &asyncError.AsyncError{OriginalError: testErrorMessage}
+		}
+		return nil
 	}
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/Azure/aks-async/runtime/errors"
 	"github.com/Azure/aks-async/runtime/operation"
 	sampleOperation "github.com/Azure/aks-async/runtime/testutils/operation"
 	. "github.com/onsi/ginkgo/v2"
@@ -20,14 +21,14 @@ type RunOnlyHooks struct {
 	HookedApiOperation
 }
 
-func (h *RunOnlyHooks) BeforeRun(ctx context.Context, op operation.ApiOperation) error {
+func (h *RunOnlyHooks) BeforeRun(ctx context.Context, op operation.ApiOperation) *errors.AsyncError {
 	if sampleOp, ok := (op).(*sampleOperation.SampleOperation); ok {
 		sampleOp.Num += 1
 	}
 	return nil
 }
 
-func (h *RunOnlyHooks) AfterRun(ctx context.Context, op operation.ApiOperation, err error) error {
+func (h *RunOnlyHooks) AfterRun(ctx context.Context, op operation.ApiOperation, err *errors.AsyncError) *errors.AsyncError {
 	if sampleOp, ok := (op).(*sampleOperation.SampleOperation); ok {
 		sampleOp.Num += 1
 	}

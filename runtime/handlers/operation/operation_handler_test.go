@@ -10,11 +10,13 @@ import (
 
 	"github.com/Azure/aks-async/mocks"
 	"github.com/Azure/aks-async/runtime/entity"
+	asyncError "github.com/Azure/aks-async/runtime/errors"
 	handlerErrors "github.com/Azure/aks-async/runtime/handlers/errors"
 	"github.com/Azure/aks-async/runtime/matcher"
 	"github.com/Azure/aks-async/runtime/operation"
 	sampleOperation "github.com/Azure/aks-async/runtime/testutils/operation"
 	"github.com/Azure/aks-async/runtime/testutils/settler"
+	"github.com/Azure/aks-async/runtime/testutils/toolkit/convert"
 	"github.com/Azure/aks-middleware/grpc/server/ctxlogger"
 	"github.com/Azure/azure-sdk-for-go/sdk/messaging/azservicebus"
 	"github.com/Azure/go-shuttle/v2"
@@ -85,7 +87,7 @@ var _ = Describe("OperationHandler", func() {
 		if err != nil {
 			return
 		}
-		message = convertToReceivedMessage(marshalledMessage)
+		message = convert.ConvertToReceivedMessage(marshalledMessage)
 		sampleSettler = &settler.SampleMessageSettler{}
 
 		operationHandler = NewOperationHandler(operationMatcher, nil, mockEntityController, marshaller)
@@ -108,15 +110,16 @@ var _ = Describe("OperationHandler", func() {
 
 			err := operationHandler(ctx, sampleSettler, invalidMarshalledMessage)
 			Expect(err).To(HaveOccurred())
+			//TODO(mheberling): can we match the error type no the msg?
 			// Expect(err).To(MatchError(&handlerErrors.NonRetryError{Message: "Error unmarshalling message: "}))
-			Expect(err.Error()).To(ContainSubstring("Error unmarshalling message: "))
+			Expect(err.Error()).To(ContainSubstring("Error unmarshalling message"))
 		})
 		It("should throw an error while creating a hooked instance", func() {
 			operationMatcher = matcher.NewMatcher()
 			operationHandler = NewOperationHandler(operationMatcher, nil, mockEntityController, marshaller)
 			err := operationHandler(ctx, sampleSettler, message)
 			Expect(err).To(HaveOccurred())
-			Expect(err.Error()).To(ContainSubstring("Error creating operation instance: The ApiOperation doesn't exist in the map: SampleOperation"))
+			Expect(err.Message).To(ContainSubstring("Operation type doesn't exist in the matcher:"))
 			// Expect(err).To(MatchError(&handlerErrors.NonRetryError{Message: "Error creating operation instance: The ApiOperation doesn't exist in the map: SampleOperation"}))
 		})
 		It("should throw an error while InitOperation", func() {
@@ -132,8 +135,8 @@ var _ = Describe("OperationHandler", func() {
 			Expect(err).ToNot(BeNil())
 		})
 		It("should throw an error in EntityController", func() {
-			randomError := errors.New("Random error")
-			mockEntityController.EXPECT().GetEntity(gomock.Any(), gomock.Any()).Return(nil, randomError)
+			aerr := &asyncError.AsyncError{OriginalError: errors.New("Random error")}
+			mockEntityController.EXPECT().GetEntity(gomock.Any(), gomock.Any()).Return(nil, aerr)
 			err := operationHandler(ctx, sampleSettler, message)
 			Expect(err).ToNot(BeNil())
 		})
@@ -172,29 +175,3 @@ var _ = Describe("OperationHandler", func() {
 		})
 	})
 })
-
-func convertToReceivedMessage(msg *azservicebus.Message) *azservicebus.ReceivedMessage {
-	var messageID string
-	if msg.MessageID != nil {
-		messageID = *msg.MessageID
-	}
-
-	return &azservicebus.ReceivedMessage{
-		ApplicationProperties: msg.ApplicationProperties,
-		Body:                  msg.Body,
-		ContentType:           msg.ContentType,
-		CorrelationID:         msg.CorrelationID,
-		MessageID:             messageID,
-		PartitionKey:          msg.PartitionKey,
-		ReplyTo:               msg.ReplyTo,
-		ReplyToSessionID:      msg.ReplyToSessionID,
-		ScheduledEnqueueTime:  msg.ScheduledEnqueueTime,
-		SessionID:             msg.SessionID,
-		Subject:               msg.Subject,
-		TimeToLive:            msg.TimeToLive,
-		To:                    msg.To,
-
-		// The rest of the fields like LockToken, SequenceNumber, etc., are not present in Message
-		// and would need to be mocked or left as zero values if needed.
-	}
-}

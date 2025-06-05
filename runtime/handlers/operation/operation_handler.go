@@ -25,7 +25,7 @@ func NewOperationHandler(matcher *matcher.Matcher, hooks []hooks.BaseOperationHo
 		var body operation.OperationRequest
 		err := marshaller.Unmarshal(message.Message(), &body)
 		if err != nil {
-			errorMessage := "Error calling unmarshalling message body: " + err.Error()
+			errorMessage := "Error unmarshalling message: " + err.Error()
 			logger.Error(errorMessage)
 			return &asyncErrors.AsyncError{
 				OriginalError: &errors.NonRetryError{Message: "Error unmarshalling message."},

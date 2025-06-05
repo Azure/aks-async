@@ -13,5 +13,9 @@ type AsyncError struct {
 }
 
 func (e *AsyncError) Error() string {
-	return fmt.Sprintf("AsyncError: Message: %s", e.Message)
+	return fmt.Sprintf("AsyncError: OriginalError: %s", e.OriginalError.Error())
+}
+
+func (e *AsyncError) Unwrap() error {
+	return e.OriginalError
 }

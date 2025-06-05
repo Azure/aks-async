@@ -11,6 +11,9 @@ import (
 
 func SampleErrorHandler(testError error) handlerErrors.ErrorHandlerFunc {
 	return func(ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage) *asyncErrors.AsyncError {
-		return &asyncErrors.AsyncError{OriginalError: testError}
+		if testError != nil {
+			return &asyncErrors.AsyncError{OriginalError: testError}
+		}
+		return nil
 	}
 }
