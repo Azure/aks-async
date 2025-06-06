@@ -9,10 +9,6 @@ import (
 	"github.com/Azure/aks-async/runtime/operation"
 )
 
-// The EntityFactoryFunc is utilized as an interface for a function to create
-// entity.Entity types.
-type EntityFactoryFunc func(string) (entity.Entity, error)
-
 // The matcher is utilized in order to keep track of the name and type of each operation.
 // This is required because we only send the OperationRequest through the service bus,
 // but we utilize the name in that struct to create an instance of the right operation
@@ -20,13 +16,13 @@ type EntityFactoryFunc func(string) (entity.Entity, error)
 // to create the Entity based on the name of the operation by using a stored EntityFactoryFunc.
 type Matcher struct {
 	Types          map[string]reflect.Type
-	EntityCreators map[string]EntityFactoryFunc
+	EntityCreators map[string]entity.EntityFactoryFunc
 }
 
 func NewMatcher() *Matcher {
 	return &Matcher{
 		Types:          make(map[string]reflect.Type),
-		EntityCreators: make(map[string]EntityFactoryFunc),
+		EntityCreators: make(map[string]entity.EntityFactoryFunc),
 	}
 }
 
@@ -38,7 +34,7 @@ func (m *Matcher) Register(ctx context.Context, key string, value operation.ApiO
 
 // Set adds a key-value pair to the map
 // Ex: matcher.RegisterEntity("LongRunning", longRunningOperation.CreateLroEntityFunc)
-func (m *Matcher) RegisterEntity(ctx context.Context, key string, value EntityFactoryFunc) {
+func (m *Matcher) RegisterEntity(ctx context.Context, key string, value entity.EntityFactoryFunc) {
 	m.EntityCreators[key] = value
 }
 

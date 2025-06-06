@@ -4,3 +4,7 @@ package entity
 type Entity interface {
 	GetLatestOperationID() string
 }
+
+// The EntityFactoryFunc is utilized as an interface for a function to create
+// entity.Entity types.
+type EntityFactoryFunc func(string) (Entity, error)
