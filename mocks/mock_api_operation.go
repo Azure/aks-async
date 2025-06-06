@@ -72,7 +72,7 @@ func (mr *MockApiOperationMockRecorder) GuardConcurrency(arg0, arg1 any) *gomock
 }
 
 // InitOperation mocks base method.
-func (m *MockApiOperation) InitOperation(arg0 context.Context, arg1 operation.OperationRequest) (operation.ApiOperation, *errors.AsyncError) {
+func (m *MockApiOperation) InitOperation(arg0 context.Context, arg1 *operation.OperationRequest) (operation.ApiOperation, *errors.AsyncError) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "InitOperation", arg0, arg1)
 	ret0, _ := ret[0].(operation.ApiOperation)

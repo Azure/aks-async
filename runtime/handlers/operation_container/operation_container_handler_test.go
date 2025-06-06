@@ -98,6 +98,7 @@ var _ = Describe("OperationContainerHandler", func() {
 				err := operationContainerHandler(ctx, sampleSettler, message)
 				Expect(err).To(BeNil())
 			})
+
 			It("should handle operationContainer client returning an error", func() {
 				operationContainerHandler = NewOperationContainerHandler(sampleErrorHandler.SampleErrorHandler(nil), operationContainerClient, marshaller)
 
@@ -128,6 +129,7 @@ var _ = Describe("OperationContainerHandler", func() {
 					Expect(err).ToNot(BeNil())
 					Expect(errors.Is(err, nonRetryError)).To(BeTrue())
 				})
+
 				It("should handle client error while handling a NonRetryError", func() {
 					nonRetryError := &handlerErrors.NonRetryError{
 						Message: "NonRetryError!",
@@ -145,6 +147,7 @@ var _ = Describe("OperationContainerHandler", func() {
 					Expect(errors.Is(err, nonRetryError)).To(BeTrue())
 				})
 			})
+
 			Context("RetryError", func() {
 				It("should handle a RetryError", func() {
 					retryError := &handlerErrors.RetryError{
@@ -160,6 +163,7 @@ var _ = Describe("OperationContainerHandler", func() {
 					Expect(err).ToNot(BeNil())
 					Expect(errors.Is(err, retryError)).To(BeTrue())
 				})
+
 				It("should handle client error while handling a RetryError", func() {
 					retryError := &handlerErrors.RetryError{
 						Message: "RetryError!",
@@ -177,6 +181,7 @@ var _ = Describe("OperationContainerHandler", func() {
 					Expect(errors.Is(err, retryError)).To(BeTrue())
 				})
 			})
+
 			Context("default", func() {
 				It("should handle a default", func() {
 					defaultError := errors.New("default error")

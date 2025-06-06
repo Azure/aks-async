@@ -10,8 +10,8 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/messaging/azservicebus"
 )
 
+// TODO(mheberling): Find how to test without our interface.
 type ServiceBus struct {
-	// In the future, we can add more types of service bus here.
 	Client *azservicebus.Client
 }
 

@@ -36,7 +36,7 @@ func NewOperationHandler(matcher *matcher.Matcher, hooks []hooks.BaseOperationHo
 		}
 
 		// 2 Match it with the correct type of operation
-		operation, err := matcher.CreateHookedInstace(body.OperationName, hooks)
+		operation, err := matcher.CreateHookedInstance(ctx, body.OperationName, hooks)
 		if err != nil {
 			errorMessage := "Operation type doesn't exist in the matcher: " + err.Error()
 			logger.Error(errorMessage)
@@ -49,7 +49,7 @@ func NewOperationHandler(matcher *matcher.Matcher, hooks []hooks.BaseOperationHo
 		}
 
 		// 3. Init the operation with the information we have.
-		_, asyncErr := operation.InitOperation(ctx, body)
+		_, asyncErr := operation.InitOperation(ctx, &body)
 		if asyncErr != nil {
 			logger.Error("Something went wrong initializing the operation.")
 			return asyncErr

@@ -60,10 +60,10 @@ var _ = Describe("OperationHandler", func() {
 		sampleOp = &sampleOperation.SampleOperation{}
 
 		operationMatcher = matcher.NewMatcher()
-		operationMatcher.Register(operationName, sampleOp)
+		operationMatcher.Register(ctx, operationName, sampleOp)
 
-		operationMatcher.RegisterEntity(operationName, func(latestOperationId string) entity.Entity {
-			return mocks.NewMockEntity(ctrl)
+		operationMatcher.RegisterEntity(ctx, operationName, func(latestOperationId string) (entity.Entity, error) {
+			return mocks.NewMockEntity(ctrl), nil
 		})
 
 		mockEntityController = mocks.NewMockEntityController(ctrl)
@@ -97,12 +97,14 @@ var _ = Describe("OperationHandler", func() {
 		ctrl.Finish()
 	})
 
+	// TODO(mheberling): Match error types not error messages.
 	Context("mock testing", func() {
 		It("should not throw an error", func() {
 			mockEntityController.EXPECT().GetEntity(gomock.Any(), gomock.Any()).Return(nil, nil)
 			err := operationHandler(ctx, sampleSettler, message)
 			Expect(err).To(BeNil())
 		})
+
 		It("should throw an error while unmarshalling", func() {
 			invalidMarshalledMessage := &azservicebus.ReceivedMessage{
 				Body: []byte(`invalid json`),
@@ -110,18 +112,17 @@ var _ = Describe("OperationHandler", func() {
 
 			err := operationHandler(ctx, sampleSettler, invalidMarshalledMessage)
 			Expect(err).To(HaveOccurred())
-			//TODO(mheberling): can we match the error type no the msg?
-			// Expect(err).To(MatchError(&handlerErrors.NonRetryError{Message: "Error unmarshalling message: "}))
 			Expect(err.Error()).To(ContainSubstring("Error unmarshalling message"))
 		})
+
 		It("should throw an error while creating a hooked instance", func() {
 			operationMatcher = matcher.NewMatcher()
 			operationHandler = NewOperationHandler(operationMatcher, nil, mockEntityController, marshaller)
 			err := operationHandler(ctx, sampleSettler, message)
 			Expect(err).To(HaveOccurred())
 			Expect(err.Message).To(ContainSubstring("Operation type doesn't exist in the matcher:"))
-			// Expect(err).To(MatchError(&handlerErrors.NonRetryError{Message: "Error creating operation instance: The ApiOperation doesn't exist in the map: SampleOperation"}))
 		})
+
 		It("should throw an error while InitOperation", func() {
 			req := &operation.OperationRequest{
 				OperationId:   "1",
@@ -134,12 +135,14 @@ var _ = Describe("OperationHandler", func() {
 			err = operationHandler(ctx, sampleSettler, message)
 			Expect(err).ToNot(BeNil())
 		})
+
 		It("should throw an error in EntityController", func() {
 			aerr := &asyncError.AsyncError{OriginalError: errors.New("Random error")}
 			mockEntityController.EXPECT().GetEntity(gomock.Any(), gomock.Any()).Return(nil, aerr)
 			err := operationHandler(ctx, sampleSettler, message)
 			Expect(err).ToNot(BeNil())
 		})
+
 		It("should throw an error while GuardConcurrency", func() {
 			req := &operation.OperationRequest{
 				OperationId:   "2",
@@ -153,6 +156,7 @@ var _ = Describe("OperationHandler", func() {
 			ce := operationHandler(ctx, sampleSettler, message)
 			Expect(ce).ToNot(BeNil())
 		})
+
 		It("should throw an error while Run", func() {
 			req := &operation.OperationRequest{
 				OperationId:   "3",
@@ -166,6 +170,7 @@ var _ = Describe("OperationHandler", func() {
 			err = operationHandler(ctx, sampleSettler, message)
 			Expect(err).ToNot(BeNil())
 		})
+
 		It("should throw an error while Settling", func() {
 			failureContentType := "failure_test"
 			message.ContentType = &failureContentType

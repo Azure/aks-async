@@ -66,7 +66,7 @@ var _ = Describe("Hooks", func() {
 			OperationInstance: operationInstance,
 			OperationHooks:    hooksSlice,
 		}
-		_, err := hOperation.InitOperation(ctx, *opRequest)
+		_, err := hOperation.InitOperation(ctx, opRequest)
 		Expect(err).NotTo(HaveOccurred())
 	})
 

@@ -2,7 +2,7 @@ package matcher
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"reflect"
 	"testing"
 
@@ -20,92 +20,142 @@ func TestMatcher(t *testing.T) {
 
 var _ = Describe("Matcher", func() {
 	var (
-		matcher           *Matcher
-		operationName     string
-		sampleOp          *sampleOperation.SampleOperation
-		longRunningOpType reflect.Type
-		ctx               context.Context
+		matcher             *Matcher
+		operationName       string
+		sampleOp            *sampleOperation.SampleOperation
+		sampleOperationType reflect.Type
+		ctx                 context.Context
 	)
 
 	BeforeEach(func() {
 		matcher = NewMatcher()
 		operationName = "LongRunning"
 		sampleOp = &sampleOperation.SampleOperation{}
-		longRunningOpType = reflect.TypeOf(sampleOp).Elem()
+		sampleOperationType = reflect.TypeOf(sampleOp).Elem()
 		ctx = context.Background()
 	})
 
 	Describe("Register and Get Operation", func() {
 		It("should register and retrieve the operation type", func() {
-			matcher.Register(operationName, sampleOp)
+			matcher.Register(ctx, operationName, sampleOp)
+			Expect(matcher.Types).To(HaveKey(operationName))
 
-			retrieved, exists := matcher.Get(operationName)
-			Expect(exists).To(BeTrue(), fmt.Sprintf("Operation %s should exist in the matcher", operationName))
-			Expect(retrieved).To(Equal(longRunningOpType), fmt.Sprintf("Expected %s. Instead got: %s", longRunningOpType, retrieved))
+			retrieved, exists := matcher.Get(ctx, operationName)
+			Expect(exists).To(BeTrue())
+			Expect(retrieved).To(Equal(sampleOperationType))
+		})
+
+		It("should not find unregistered operation type", func() {
+			unregisteredOperation := "UnregisteredOperation"
+			Expect(matcher.Types).NotTo(HaveKey(unregisteredOperation))
+
+			operation, exists := matcher.Get(ctx, unregisteredOperation)
+			Expect(exists).To(BeFalse())
+			Expect(operation).To(BeNil())
 		})
 	})
 
 	Describe("Create Operation Instance", func() {
 		It("should create an instance of the registered operation type", func() {
-			matcher.Register(operationName, sampleOp)
+			matcher.Register(ctx, operationName, sampleOp)
 
-			instance, err := matcher.CreateOperationInstance(operationName)
-			Expect(err).NotTo(HaveOccurred(), "Type not found")
-			Expect(reflect.TypeOf(instance).Elem()).To(Equal(longRunningOpType), "The created instance is not of the correct type")
+			Expect(matcher.Types).To(HaveKey(operationName))
+			instance, err := matcher.CreateOperationInstance(ctx, operationName)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(reflect.TypeOf(instance).Elem()).To(Equal(sampleOperationType))
 
-			_, _ = instance.InitOperation(ctx, operation.OperationRequest{})
+			_, _ = instance.InitOperation(ctx, &operation.OperationRequest{})
 			err = instance.Run(ctx)
 			Expect(err).To(BeNil())
-			if op, ok := instance.(*sampleOperation.SampleOperation); ok {
-				Expect(op.Num).To(Equal(1), "Run did not complete successfully")
-			} else {
-				Fail("Something went wrong casting the operation to LongRunning type.")
-			}
+			op, ok := instance.(*sampleOperation.SampleOperation)
+			Expect(ok).To(BeTrue())
+			Expect(op.Num).To(Equal(1))
+		})
+
+		It("should fail is key doesn't exist", func() {
+			Expect(matcher.Types).NotTo(HaveKey(operationName))
+			instance, err := matcher.CreateOperationInstance(ctx, operationName)
+
+			var opErr *OperationKeyLookupError
+			Expect(err).To(HaveOccurred())
+			Expect(errors.As(err, &opErr)).To(BeTrue())
+			Expect(instance).To(BeNil())
 		})
 	})
 
-	Describe("Register and Get Entity", func() {
+	Describe("Register and Create Entity", func() {
 		It("should register and retrieve the entity creator", func() {
 			entityKey := "TestEntity"
 			lastOperationId := "1"
-			matcher.RegisterEntity(entityKey, func(latestOperationId string) entity.Entity {
-				return &TestEntity{latestOperationId: latestOperationId}
+			matcher.RegisterEntity(ctx, entityKey, func(latestOperationId string) (entity.Entity, error) {
+				return &TestEntity{latestOperationId: latestOperationId}, nil
 			})
 
-			Expect(matcher.EntityCreators).To(HaveKey(entityKey), fmt.Sprintf("Entity creator for key %s should exist in the matcher", entityKey))
+			Expect(matcher.EntityCreators).To(HaveKey(entityKey))
 
-			entityInstance := matcher.EntityCreators[entityKey]
-			var e entity.Entity
-			if f, ok := matcher.EntityCreators[entityKey]; ok {
-				e = f(lastOperationId)
-			} else {
-				Fail(fmt.Sprintf("Expected entity instance of type *TestEntity. Instead got: %T", entityInstance))
-			}
+			entityInstance, err := matcher.CreateEntityInstance(ctx, entityKey, lastOperationId)
+			Expect(err).To(BeNil())
+			Expect(entityInstance).ToNot(BeNil())
+			Expect(entityInstance.GetLatestOperationID()).To(Equal(lastOperationId))
+		})
 
-			Expect(e.(*TestEntity).latestOperationId).To(Equal(lastOperationId), fmt.Sprintf("Expected entity name to be %s. Instead got: %s", lastOperationId, e.(*TestEntity).latestOperationId))
+		It("should fail if no lastOperationId provided", func() {
+			entityKey := "TestEntity"
+			Expect(matcher.EntityCreators).NotTo(HaveKey(entityKey))
+
+			entityInstance, err := matcher.CreateEntityInstance(ctx, entityKey, "")
+			Expect(entityInstance).To(BeNil())
+			Expect(err).To(HaveOccurred())
+			var entityErr *EmptyOperationId
+			Expect(errors.As(err, &entityErr)).To(BeTrue())
+		})
+
+		It("should fail if key doesn't exist in map", func() {
+			entityKey := "TestEntity"
+			lastOperationId := "1"
+
+			Expect(matcher.EntityCreators).NotTo(HaveKey(entityKey))
+
+			entityInstance, err := matcher.CreateEntityInstance(ctx, entityKey, lastOperationId)
+			Expect(entityInstance).To(BeNil())
+			Expect(err).To(HaveOccurred())
+			var entityErr *EntityCreationKeyLookupError
+			Expect(errors.As(err, &entityErr)).To(BeTrue())
+		})
+
+		It("should fail if entity creation returns an error", func() {
+			entityKey := "TestEntity"
+			lastOperationId := "1"
+			matcher.RegisterEntity(ctx, entityKey, func(latestOperationId string) (entity.Entity, error) {
+				return nil, errors.New("Some error")
+			})
+
+			Expect(matcher.EntityCreators).To(HaveKey(entityKey))
+
+			entityInstance, err := matcher.CreateEntityInstance(ctx, entityKey, lastOperationId)
+			Expect(entityInstance).To(BeNil())
+			Expect(err).To(HaveOccurred())
 		})
 	})
 
-	Describe("Create Entity Instance", func() {
-		It("should create an instance of the registered entity type", func() {
-			entityKey := "TestEntity"
-			lastOperationId := "1"
-			matcher.RegisterEntity(entityKey, func(latestOperationId string) entity.Entity {
-				return &TestEntity{latestOperationId: latestOperationId}
-			})
+	Describe("Create Hooked Instance", func() {
+		It("should create a hooked instance of the registered operation type", func() {
+			matcher.Register(ctx, operationName, sampleOp)
+			Expect(matcher.Types).To(HaveKey(operationName))
 
-			entityInstance, err := matcher.CreateEntityInstance(entityKey, lastOperationId)
-			Expect(err).NotTo(HaveOccurred(), "Expected no error")
-			Expect(entityInstance).To(BeAssignableToTypeOf(&TestEntity{}), fmt.Sprintf("Expected entity instance of type *TestEntity. Instead got: %T", entityInstance))
-			Expect(entityInstance.(*TestEntity).latestOperationId).To(Equal(lastOperationId), "lastestOperationId of entity doesn't match what was used to create the instance")
-
-			Expect(entityInstance.GetLatestOperationID()).To(Equal(lastOperationId), "Expected latestOperationId of entity to match lastOperationId")
+			hOp, err := matcher.CreateHookedInstance(ctx, operationName, nil)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(hOp).ToNot(BeNil())
 		})
 
-		It("should return an error for non-existent entity key", func() {
-			entityKey := "NonExistentEntity"
-			_, err := matcher.CreateEntityInstance(entityKey, "1")
-			Expect(err).To(HaveOccurred(), "Should not return function of non-existing entity.")
+		It("should fail if operation is not registered", func() {
+			Expect(matcher.Types).ToNot(HaveKey(operationName))
+
+			hOp, err := matcher.CreateHookedInstance(ctx, operationName, nil)
+			Expect(hOp).To(BeNil())
+			Expect(err).To(HaveOccurred())
+			var opKeyErr *OperationKeyLookupError
+			Expect(errors.As(err, &opKeyErr)).To(BeTrue())
 		})
 	})
 })
@@ -117,10 +167,4 @@ type TestEntity struct {
 
 func (e *TestEntity) GetLatestOperationID() string {
 	return e.latestOperationId
-}
-
-func NewTestEntity(latestOperationId string) *TestEntity {
-	return &TestEntity{
-		latestOperationId: latestOperationId,
-	}
 }

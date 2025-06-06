@@ -1,7 +1,7 @@
 package matcher
 
 import (
-	"errors"
+	"context"
 	"reflect"
 
 	"github.com/Azure/aks-async/runtime/entity"
@@ -9,7 +9,7 @@ import (
 	"github.com/Azure/aks-async/runtime/operation"
 )
 
-type EntityFactoryFunc func(string) entity.Entity
+type EntityFactoryFunc func(string) (entity.Entity, error)
 
 // The matcher is utilized in order to keep track of the name and type of each operation.
 // This is required because we only send the OperationRequest through the service bus,
@@ -30,28 +30,28 @@ func NewMatcher() *Matcher {
 
 // Set adds a key-value pair to the map
 // Ex: matcher.Register("LongRunning", &LongRunning{})
-func (m *Matcher) Register(key string, value operation.ApiOperation) {
+func (m *Matcher) Register(ctx context.Context, key string, value operation.ApiOperation) {
 	m.Types[key] = reflect.TypeOf(value).Elem()
 }
 
 // Set adds a key-value pair to the map
-// Ex: matcher.Register("LongRunning", &LongRunning{})
-func (m *Matcher) RegisterEntity(key string, value EntityFactoryFunc) {
+// Ex: matcher.RegisterEntity("LongRunning", longRunningOperation.CreateLroEntityFunc)
+func (m *Matcher) RegisterEntity(ctx context.Context, key string, value EntityFactoryFunc) {
 	m.EntityCreators[key] = value
 }
 
 // Get retrieves a type from the map by its key.
-func (m *Matcher) Get(key string) (reflect.Type, bool) {
+func (m *Matcher) Get(ctx context.Context, key string) (reflect.Type, bool) {
 	value, exists := m.Types[key]
 	return value, exists
 }
 
 // This will create an empty instance of the type, with which you can then call op.Init()
 // and initialize any info you need.
-func (m *Matcher) CreateOperationInstance(key string) (operation.ApiOperation, error) {
+func (m *Matcher) CreateOperationInstance(ctx context.Context, key string) (operation.ApiOperation, error) {
 	t, exists := m.Types[key]
 	if !exists {
-		return nil, errors.New("The ApiOperation doesn't exist in the map: " + key)
+		return nil, &OperationKeyLookupError{Key: key}
 	}
 
 	instance := reflect.New(t).Interface().(operation.ApiOperation)
@@ -60,29 +60,33 @@ func (m *Matcher) CreateOperationInstance(key string) (operation.ApiOperation, e
 
 // This will create an Entity using the EntityFactoryFunc with the lastOperationId by matching
 // with the key passed in.
-func (m *Matcher) CreateEntityInstance(key string, lastOperationId string) (entity.Entity, error) {
+func (m *Matcher) CreateEntityInstance(ctx context.Context, key string, lastOperationId string) (entity.Entity, error) {
 
 	if lastOperationId == "" {
-		return nil, errors.New("lastOperationId is empty!")
+		return nil, &EmptyOperationId{}
 	}
 
 	var entity entity.Entity
+	var err error
 	if f, ok := m.EntityCreators[key]; ok {
-		entity = f(lastOperationId)
+		entity, err = f(lastOperationId)
+		if err != nil {
+			return nil, err
+		}
 	} else {
-		return nil, errors.New("Something went wrong getting the value of key: " + key)
+		return nil, &EntityCreationKeyLookupError{Key: key}
 	}
 
 	if entity == nil {
-		return nil, errors.New("Entity was not created successfully!")
+		return nil, &EntityCreationError{}
 	}
 
 	return entity, nil
 }
 
 // Creates an instance of the operation with hooks enabled.
-func (m *Matcher) CreateHookedInstace(key string, hookList []hooks.BaseOperationHooksInterface) (*hooks.HookedApiOperation, error) {
-	operationInstance, err := m.CreateOperationInstance(key)
+func (m *Matcher) CreateHookedInstance(ctx context.Context, key string, hookList []hooks.BaseOperationHooksInterface) (*hooks.HookedApiOperation, error) {
+	operationInstance, err := m.CreateOperationInstance(ctx, key)
 	if err != nil {
 		return nil, err
 	}

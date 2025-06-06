@@ -12,8 +12,8 @@ import (
 // Hooks are used to extend the usability of the operations, and to let the user modify the behavior
 // of the different methods we enforce in case they want to change the inputs or outputs.
 type BaseOperationHooksInterface interface {
-	BeforeInitOperation(ctx context.Context, req operation.OperationRequest) *errors.AsyncError
-	AfterInitOperation(ctx context.Context, op operation.ApiOperation, req operation.OperationRequest, asyncError *errors.AsyncError) *errors.AsyncError
+	BeforeInitOperation(ctx context.Context, req *operation.OperationRequest) *errors.AsyncError
+	AfterInitOperation(ctx context.Context, op operation.ApiOperation, req *operation.OperationRequest, asyncError *errors.AsyncError) *errors.AsyncError
 
 	BeforeGuardConcurrency(ctx context.Context, op operation.ApiOperation, e entity.Entity) *errors.AsyncError
 	AfterGuardConcurrency(ctx context.Context, op operation.ApiOperation, asyncError *errors.AsyncError) *errors.AsyncError
@@ -30,10 +30,10 @@ type HookedApiOperation struct {
 // HookedApiOperation implements the methods of the BaseOperationHooksInterface to allow the user to
 // implement only the hooks they need (e.g. only implement the Before/AfterRun hooks),
 // instead of having to implement all of them.
-func (h *HookedApiOperation) BeforeInitOperation(ctx context.Context, req operation.OperationRequest) *errors.AsyncError {
+func (h *HookedApiOperation) BeforeInitOperation(ctx context.Context, req *operation.OperationRequest) *errors.AsyncError {
 	return nil
 }
-func (h *HookedApiOperation) AfterInitOperation(ctx context.Context, op operation.ApiOperation, req operation.OperationRequest, err *errors.AsyncError) *errors.AsyncError {
+func (h *HookedApiOperation) AfterInitOperation(ctx context.Context, op operation.ApiOperation, req *operation.OperationRequest, err *errors.AsyncError) *errors.AsyncError {
 	return nil
 }
 func (h *HookedApiOperation) BeforeGuardConcurrency(ctx context.Context, op operation.ApiOperation, e entity.Entity) *errors.AsyncError {
@@ -49,7 +49,7 @@ func (h *HookedApiOperation) AfterRun(ctx context.Context, op operation.ApiOpera
 	return nil
 }
 
-func (h *HookedApiOperation) InitOperation(ctx context.Context, opReq operation.OperationRequest) (operation.ApiOperation, *errors.AsyncError) {
+func (h *HookedApiOperation) InitOperation(ctx context.Context, opReq *operation.OperationRequest) (operation.ApiOperation, *errors.AsyncError) {
 	logger := ctxlogger.GetLogger(ctx)
 	logger.Info("Running BeforeInit hooks.")
 	for _, hook := range h.OperationHooks {

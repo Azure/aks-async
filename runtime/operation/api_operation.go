@@ -16,7 +16,7 @@ type ApiOperation interface {
 	// In case that the OperationRequest needs to be modified, then a new message with the
 	// correct OperationRequest values should be sent via the service bus (or the message
 	// broker of choice).
-	InitOperation(context.Context, OperationRequest) (ApiOperation, *errors.AsyncError)
+	InitOperation(context.Context, *OperationRequest) (ApiOperation, *errors.AsyncError)
 	// GuardConcurrency ensures that this operation is the latest operation that should be
 	// running to modify the Entity. If it fails, it should return the CategorizedError.
 	GuardConcurrency(context.Context, entity.Entity) *errors.AsyncError

@@ -16,11 +16,11 @@ import (
 var _ operation.ApiOperation = &SampleOperation{}
 
 type SampleOperation struct {
-	opReq operation.OperationRequest
+	opReq *operation.OperationRequest
 	Num   int
 }
 
-func (l *SampleOperation) InitOperation(ctx context.Context, opReq operation.OperationRequest) (operation.ApiOperation, *asyncErrors.AsyncError) {
+func (l *SampleOperation) InitOperation(ctx context.Context, opReq *operation.OperationRequest) (operation.ApiOperation, *asyncErrors.AsyncError) {
 	if opReq.OperationId == "1" {
 		return nil, &asyncErrors.AsyncError{OriginalError: errors.New("No OperationId")}
 	}
@@ -45,5 +45,5 @@ func (l *SampleOperation) Run(ctx context.Context) *asyncErrors.AsyncError {
 }
 
 func (l *SampleOperation) GetOperationRequest() *operation.OperationRequest {
-	return &l.opReq
+	return l.opReq
 }
