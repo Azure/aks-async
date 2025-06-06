@@ -11,19 +11,18 @@ import (
 	"github.com/Azure/go-shuttle/v2"
 )
 
-// NewLogHandler creates a new log handler with the provided logger.
+// Creates a new log handler with the provided logger and provides message logging.
 func NewLogHandler(logger *slog.Logger, next shuttle.HandlerFunc, marshaller shuttle.Marshaller) shuttle.HandlerFunc {
 	return func(ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage) {
 		if logger == nil {
 			logger = ctxlogger.GetLogger(ctx)
+			ctx = ctxlogger.WithLogger(ctx, logger)
 		}
 		if marshaller == nil {
 			marshaller = &shuttle.DefaultProtoMarshaller{}
 		}
 
-		//TODO(mheberling): Why this???
-		newCtx := ctxlogger.WithLogger(ctx, logger)
-
+		//TODO(mheberling): Set these as attributes, not individual strings.
 		logger.Info("LogHandler: Delivery count: " + fmt.Sprint(message.DeliveryCount))
 		if message.CorrelationID != nil {
 			logger.Info("LogHandler: Corrolation Id: " + *message.CorrelationID)
@@ -37,6 +36,6 @@ func NewLogHandler(logger *slog.Logger, next shuttle.HandlerFunc, marshaller shu
 
 		logger.Info("LogHandler: OperationId: " + body.OperationId)
 
-		next(newCtx, settler, message)
+		next(ctx, settler, message)
 	}
 }

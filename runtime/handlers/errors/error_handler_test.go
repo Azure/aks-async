@@ -71,7 +71,7 @@ var _ = Describe("ErrorHandler", func() {
 		)
 
 		It("should do nothing if no error", func() {
-			handler = NewErrorHandler(SampleErrorHandler(nil), sampleHandler.SampleHandler(), marshaller)
+			handler = NewErrorHandler(SampleErrorHandler(nil), sampleHandler.SampleHandler())
 			handler(ctx, sampleSettler, message)
 			fmt.Println(buf.String())
 			Expect(strings.Count(buf.String(), "ErrorHandler: ")).To(Equal(0))
@@ -82,48 +82,52 @@ var _ = Describe("ErrorHandler", func() {
 				testErrorMessage = &asyncErrors.RetryError{
 					Message: "RetryError",
 				}
-				handler = NewErrorHandler(SampleErrorHandler(testErrorMessage), sampleHandler.SampleHandler(), marshaller)
+				handler = NewErrorHandler(SampleErrorHandler(testErrorMessage), sampleHandler.SampleHandler())
 				handler(ctx, sampleSettler, message)
 				Expect(strings.Count(buf.String(), "ErrorHandler: ")).To(Equal(2))
 				Expect(strings.Count(buf.String(), "ErrorHandler: Handling RetryError")).To(Equal(1))
 			})
+
 			It("should handle settler error", func() {
 				failureContentType := "failure_test"
 				message.ContentType = &failureContentType
 				testErrorMessage = &asyncErrors.RetryError{
 					Message: "RetryError",
 				}
-				handler = NewErrorHandler(SampleErrorHandler(testErrorMessage), sampleHandler.SampleHandler(), marshaller)
+				handler = NewErrorHandler(SampleErrorHandler(testErrorMessage), sampleHandler.SampleHandler())
 				handler(ctx, sampleSettler, message)
 				Expect(strings.Count(buf.String(), "ErrorHandler: ")).To(Equal(3))
 				Expect(strings.Count(buf.String(), "ErrorHandler: Handling RetryError")).To(Equal(1))
 			})
 		})
+
 		Context("NonRetryError", func() {
 			It("should show NonRetryError in log", func() {
 				testErrorMessage = &asyncErrors.NonRetryError{
 					Message: "NonRetryError",
 				}
-				handler = NewErrorHandler(SampleErrorHandler(testErrorMessage), sampleHandler.SampleHandler(), marshaller)
+				handler = NewErrorHandler(SampleErrorHandler(testErrorMessage), sampleHandler.SampleHandler())
 				handler(ctx, sampleSettler, message)
 				Expect(strings.Count(buf.String(), "ErrorHandler: ")).To(Equal(2))
 				Expect(strings.Count(buf.String(), "ErrorHandler: Handling NonRetryError")).To(Equal(1))
 			})
+
 			It("should handle settler error", func() {
 				failureContentType := "failure_test"
 				message.ContentType = &failureContentType
 				testErrorMessage = &asyncErrors.NonRetryError{
 					Message: "NonRetryError",
 				}
-				handler = NewErrorHandler(SampleErrorHandler(testErrorMessage), sampleHandler.SampleHandler(), marshaller)
+				handler = NewErrorHandler(SampleErrorHandler(testErrorMessage), sampleHandler.SampleHandler())
 				handler(ctx, sampleSettler, message)
 				Expect(strings.Count(buf.String(), "ErrorHandler: ")).To(Equal(3))
 				Expect(strings.Count(buf.String(), "ErrorHandler: Handling NonRetryError")).To(Equal(1))
 			})
 		})
-		It("should show different error in log", func() {
+
+		It("should handle default case", func() {
 			testErrorMessage = errors.New("Random error")
-			handler = NewErrorHandler(SampleErrorHandler(testErrorMessage), sampleHandler.SampleHandler(), marshaller)
+			handler = NewErrorHandler(SampleErrorHandler(testErrorMessage), sampleHandler.SampleHandler())
 			handler(ctx, sampleSettler, message)
 			Expect(strings.Count(buf.String(), "ErrorHandler: ")).To(Equal(2))
 			Expect(strings.Count(buf.String(), "Error not recognized")).To(Equal(1))
@@ -136,7 +140,7 @@ var _ = Describe("ErrorHandler", func() {
 		)
 
 		It("should do nothing if no error", func() {
-			errHandler = NewErrorReturnHandler(SampleErrorHandler(nil), sampleHandler.SampleHandler(), marshaller)
+			errHandler = NewErrorReturnHandler(SampleErrorHandler(nil), sampleHandler.SampleHandler())
 			errHandler(ctx, sampleSettler, message)
 			Expect(strings.Count(buf.String(), "ErrorReturnHandler: ")).To(Equal(0))
 		})
@@ -146,19 +150,20 @@ var _ = Describe("ErrorHandler", func() {
 				testErrorMessage = &asyncErrors.RetryError{
 					Message: "RetryError",
 				}
-				errHandler = NewErrorReturnHandler(SampleErrorHandler(testErrorMessage), sampleHandler.SampleHandler(), marshaller)
+				errHandler = NewErrorReturnHandler(SampleErrorHandler(testErrorMessage), sampleHandler.SampleHandler())
 				err := errHandler(ctx, sampleSettler, message)
 				Expect(strings.Count(buf.String(), "ErrorReturnHandler: ")).To(Equal(2))
 				Expect(strings.Count(buf.String(), "ErrorReturnHandler: Handling RetryError")).To(Equal(1))
 				Expect(err).ToNot(BeNil())
 			})
+
 			It("should handle settler error", func() {
 				failureContentType := "failure_test"
 				message.ContentType = &failureContentType
 				testErrorMessage = &asyncErrors.RetryError{
 					Message: "RetryError",
 				}
-				errHandler = NewErrorReturnHandler(SampleErrorHandler(testErrorMessage), sampleHandler.SampleHandler(), marshaller)
+				errHandler = NewErrorReturnHandler(SampleErrorHandler(testErrorMessage), sampleHandler.SampleHandler())
 				err := errHandler(ctx, sampleSettler, message)
 				Expect(strings.Count(buf.String(), "ErrorReturnHandler: ")).To(Equal(3))
 				Expect(strings.Count(buf.String(), "ErrorReturnHandler: Handling RetryError")).To(Equal(1))
@@ -171,19 +176,20 @@ var _ = Describe("ErrorHandler", func() {
 				testErrorMessage = &asyncErrors.NonRetryError{
 					Message: "NonRetryError",
 				}
-				errHandler = NewErrorReturnHandler(SampleErrorHandler(testErrorMessage), sampleHandler.SampleHandler(), marshaller)
+				errHandler = NewErrorReturnHandler(SampleErrorHandler(testErrorMessage), sampleHandler.SampleHandler())
 				err := errHandler(ctx, sampleSettler, message)
 				Expect(strings.Count(buf.String(), "ErrorReturnHandler: ")).To(Equal(2))
 				Expect(strings.Count(buf.String(), "ErrorReturnHandler: Handling NonRetryError")).To(Equal(1))
 				Expect(err).ToNot(BeNil())
 			})
+
 			It("should handle settler error", func() {
 				failureContentType := "failure_test"
 				message.ContentType = &failureContentType
 				testErrorMessage = &asyncErrors.NonRetryError{
 					Message: "NonRetryError",
 				}
-				errHandler = NewErrorReturnHandler(SampleErrorHandler(testErrorMessage), sampleHandler.SampleHandler(), marshaller)
+				errHandler = NewErrorReturnHandler(SampleErrorHandler(testErrorMessage), sampleHandler.SampleHandler())
 				err := errHandler(ctx, sampleSettler, message)
 				Expect(strings.Count(buf.String(), "ErrorReturnHandler: ")).To(Equal(3))
 				Expect(strings.Count(buf.String(), "ErrorReturnHandler: Handling NonRetryError")).To(Equal(1))
@@ -191,9 +197,9 @@ var _ = Describe("ErrorHandler", func() {
 			})
 		})
 
-		It("should show different error in log", func() {
+		It("should handle default case", func() {
 			testErrorMessage = errors.New("Random error")
-			errHandler = NewErrorReturnHandler(SampleErrorHandler(testErrorMessage), sampleHandler.SampleHandler(), marshaller)
+			errHandler = NewErrorReturnHandler(SampleErrorHandler(testErrorMessage), sampleHandler.SampleHandler())
 			err := errHandler(ctx, sampleSettler, message)
 			Expect(strings.Count(buf.String(), "ErrorReturnHandler: ")).To(Equal(2))
 			Expect(strings.Count(buf.String(), "Error not recognized")).To(Equal(1))

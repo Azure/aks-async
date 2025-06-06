@@ -67,6 +67,7 @@ var _ = Describe("LogHandler", func() {
 		handler(ctx, sampleSettler, receivedMessage)
 		Expect(strings.Count(buf.String(), "LogHandler: ")).To(Equal(2))
 	})
+
 	It("should throw an error while unmarshalling", func() {
 		invalidMarshalledMessage := &azservicebus.ReceivedMessage{
 			Body: []byte(`invalid json`),

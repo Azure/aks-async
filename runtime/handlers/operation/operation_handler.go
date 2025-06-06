@@ -35,7 +35,7 @@ func NewOperationHandler(matcher *matcher.Matcher, hooks []hooks.BaseOperationHo
 			}
 		}
 
-		// 2 Match it with the correct type of operation
+		// 2. Match it with the correct type of operation
 		operation, err := matcher.CreateHookedInstance(ctx, body.OperationName, hooks)
 		if err != nil {
 			errorMessage := "Operation type doesn't exist in the matcher: " + err.Error()
@@ -79,7 +79,7 @@ func NewOperationHandler(matcher *matcher.Matcher, hooks []hooks.BaseOperationHo
 			return asyncErr
 		}
 
-		// 6. Finish the message
+		// 6. Settle the message
 		err = settleMessage(ctx, settler, message, nil)
 		if err != nil {
 			logger.Error("Settling message: " + err.Error())

@@ -41,7 +41,6 @@ func DefaultHandlers(
 			errors.NewErrorReturnHandler(
 				operation.NewOperationHandler(matcher, hooks, entityController, marshaller),
 				nil,
-				marshaller,
 			),
 			operationContainer,
 			marshaller,
@@ -50,7 +49,6 @@ func DefaultHandlers(
 		errorHandler = errors.NewErrorReturnHandler(
 			operation.NewOperationHandler(matcher, hooks, entityController, marshaller),
 			nil,
-			marshaller,
 		)
 	}
 

@@ -9,6 +9,7 @@ import (
 	"github.com/Azure/go-shuttle/v2"
 )
 
+// TODO(mheberling): Separate interface and error handlers into different files.
 // ErrorHandler interface that returns an error. Required for any error handling accross handlers.
 type ErrorHandler interface {
 	Handle(ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage) *errors.AsyncError
@@ -20,7 +21,7 @@ func (f ErrorHandlerFunc) Handle(ctx context.Context, settler shuttle.MessageSet
 }
 
 // An error handler that continues the normal shuttle.HandlerFunc handler chain.
-func NewErrorHandler(errHandler ErrorHandlerFunc, next shuttle.HandlerFunc, marshaller shuttle.Marshaller) shuttle.HandlerFunc {
+func NewErrorHandler(errHandler ErrorHandlerFunc, next shuttle.HandlerFunc) shuttle.HandlerFunc {
 	return func(ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage) {
 		err := errHandler.Handle(ctx, settler, message)
 		if err != nil {
@@ -30,13 +31,13 @@ func NewErrorHandler(errHandler ErrorHandlerFunc, next shuttle.HandlerFunc, mars
 			switch err.OriginalError.(type) {
 			case *errors.NonRetryError:
 				logger.Info("ErrorHandler: Handling NonRetryError.")
-				actionErr := nonRetryOperationError(ctx, settler, message, marshaller)
+				actionErr := nonRetryOperationError(ctx, settler, message)
 				if actionErr != nil {
 					logger.Error("ErrorHandler: " + actionErr.Error())
 				}
 			case *errors.RetryError:
 				logger.Info("ErrorHandler: Handling RetryError.")
-				actionErr := retryOperationError(ctx, settler, message, marshaller)
+				actionErr := retryOperationError(ctx, settler, message)
 				if actionErr != nil {
 					logger.Error("ErrorHandler: " + actionErr.Error())
 				}
@@ -52,7 +53,7 @@ func NewErrorHandler(errHandler ErrorHandlerFunc, next shuttle.HandlerFunc, mars
 }
 
 // An error handler that provides the error to the parent handler for logging.
-func NewErrorReturnHandler(errHandler ErrorHandlerFunc, next shuttle.HandlerFunc, marshaller shuttle.Marshaller) ErrorHandlerFunc {
+func NewErrorReturnHandler(errHandler ErrorHandlerFunc, next shuttle.HandlerFunc) ErrorHandlerFunc {
 	return func(ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage) *errors.AsyncError {
 		err := errHandler.Handle(ctx, settler, message)
 		if err != nil {
@@ -62,7 +63,7 @@ func NewErrorReturnHandler(errHandler ErrorHandlerFunc, next shuttle.HandlerFunc
 			switch err.OriginalError.(type) {
 			case *errors.NonRetryError:
 				logger.Info("ErrorReturnHandler: Handling NonRetryError.")
-				actionErr := nonRetryOperationError(ctx, settler, message, marshaller)
+				actionErr := nonRetryOperationError(ctx, settler, message)
 				if actionErr != nil {
 					logger.Error("ErrorReturnHandler: " + actionErr.Error())
 					return &errors.AsyncError{
@@ -73,7 +74,7 @@ func NewErrorReturnHandler(errHandler ErrorHandlerFunc, next shuttle.HandlerFunc
 				}
 			case *errors.RetryError:
 				logger.Info("ErrorReturnHandler: Handling RetryError.")
-				actionErr := retryOperationError(ctx, settler, message, marshaller)
+				actionErr := retryOperationError(ctx, settler, message)
 				if actionErr != nil {
 					logger.Error("ErrorReturnHandler: " + actionErr.Error())
 					return &errors.AsyncError{
@@ -95,7 +96,7 @@ func NewErrorReturnHandler(errHandler ErrorHandlerFunc, next shuttle.HandlerFunc
 	}
 }
 
-func nonRetryOperationError(ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage, marshaller shuttle.Marshaller) error {
+func nonRetryOperationError(ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage) error {
 	logger := ctxlogger.GetLogger(ctx)
 	logger.Info("Non Retry Operation Error.")
 
@@ -108,7 +109,7 @@ func nonRetryOperationError(ctx context.Context, settler shuttle.MessageSettler,
 	return nil
 }
 
-func retryOperationError(ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage, marshaller shuttle.Marshaller) error {
+func retryOperationError(ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage) error {
 	logger := ctxlogger.GetLogger(ctx)
 	logger.Info("Abandoning message for retry.")
 
