@@ -17,6 +17,10 @@ func NewOperationContainerHandler(errHandler errorHandlers.ErrorHandlerFunc, ope
 	return func(ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage) *errors.AsyncError {
 		logger := ctxlogger.GetLogger(ctx)
 
+		if marshaller == nil {
+			marshaller = &shuttle.DefaultProtoMarshaller{}
+		}
+
 		var body operation.OperationRequest
 		err := marshaller.Unmarshal(message.Message(), &body)
 		if err != nil {
@@ -88,6 +92,7 @@ func NewOperationContainerHandler(errHandler errorHandlers.ErrorHandlerFunc, ope
 			}
 			return asyncErr
 		} else {
+			// Set the operation as Succeeded
 			logger.Info("OperationContainerHandler: Setting Operation as Succeeded.")
 			updateOperationStatusRequest = &oc.UpdateOperationStatusRequest{
 				OperationId: body.OperationId,

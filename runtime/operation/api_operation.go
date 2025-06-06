@@ -10,15 +10,10 @@ import (
 // ApiOperation is the interface all operations will need to implement.
 type ApiOperation interface {
 	// Initialize the operation with any clients and variables that are required.
-	// Only the value of the OperationRequest is passed as an argument
-	// (not a pointer to it) since the OperationRequest should not be modified in this
-	// function due to receiving the request from the service bus and they can't be modified.
-	// In case that the OperationRequest needs to be modified, then a new message with the
-	// correct OperationRequest values should be sent via the service bus (or the message
-	// broker of choice).
+	// Can simply return itself after initializing all the required values.
 	InitOperation(context.Context, *OperationRequest) (ApiOperation, *errors.AsyncError)
 	// GuardConcurrency ensures that this operation is the latest operation that should be
-	// running to modify the Entity. If it fails, it should return the CategorizedError.
+	// running to modify the Entity. If it fails, it should return the AsyncError.
 	GuardConcurrency(context.Context, entity.Entity) *errors.AsyncError
 	// Run will simply run the operation logic required.
 	Run(context.Context) *errors.AsyncError

@@ -9,6 +9,8 @@ import (
 	"github.com/Azure/aks-async/runtime/operation"
 )
 
+// The EntityFactoryFunc is utilized as an interface for a function to create
+// entity.Entity types.
 type EntityFactoryFunc func(string) (entity.Entity, error)
 
 // The matcher is utilized in order to keep track of the name and type of each operation.

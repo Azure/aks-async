@@ -31,7 +31,6 @@ var _ = Describe("QoSHandler", func() {
 
 	BeforeEach(func() {
 		buf.Reset()
-		// ctrl = gomock.NewController(GinkgoT())
 		logger := slog.New(slog.NewTextHandler(&buf, nil))
 		ctx = context.TODO()
 		ctx = ctxlogger.WithLogger(ctx, logger)

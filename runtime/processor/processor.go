@@ -16,6 +16,7 @@ import (
 )
 
 // The processor will be used to process all the operations using the default values or with handlers set by the user.
+// Here we provide our default processor with all the default handlers required to handle async operations.
 func CreateProcessor(
 	serviceBusReceiver sb.ReceiverInterface,
 	matcher *matcher.Matcher,

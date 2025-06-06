@@ -21,6 +21,10 @@ func NewOperationHandler(matcher *matcher.Matcher, hooks []hooks.BaseOperationHo
 	return func(ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage) *errors.AsyncError {
 		logger := ctxlogger.GetLogger(ctx)
 
+		if marshaller == nil {
+			marshaller = &shuttle.DefaultProtoMarshaller{}
+		}
+
 		// 1. Unmarshall the operation
 		var body operation.OperationRequest
 		err := marshaller.Unmarshal(message.Message(), &body)

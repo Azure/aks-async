@@ -11,6 +11,7 @@ import (
 	operation "github.com/Azure/aks-async/runtime/operation"
 	sampleHandler "github.com/Azure/aks-async/runtime/testutils/handler"
 	"github.com/Azure/aks-async/runtime/testutils/settler"
+	"github.com/Azure/aks-async/runtime/testutils/toolkit/convert"
 	"github.com/Azure/aks-middleware/grpc/server/ctxlogger"
 	"github.com/Azure/azure-sdk-for-go/sdk/messaging/azservicebus"
 	"github.com/Azure/go-shuttle/v2"
@@ -59,7 +60,7 @@ var _ = Describe("LogHandler", func() {
 		if err != nil {
 			return
 		}
-		receivedMessage = convertToReceivedMessage(message)
+		receivedMessage = convert.ConvertToReceivedMessage(message)
 		handler = NewLogHandler(logger, sampleHandler.SampleHandler(), marshaller)
 	})
 
@@ -78,29 +79,3 @@ var _ = Describe("LogHandler", func() {
 		Expect(strings.Count(buf.String(), "Error unmarshalling message")).To(Equal(1))
 	})
 })
-
-func convertToReceivedMessage(msg *azservicebus.Message) *azservicebus.ReceivedMessage {
-	var messageID string
-	if msg.MessageID != nil {
-		messageID = *msg.MessageID
-	}
-
-	return &azservicebus.ReceivedMessage{
-		ApplicationProperties: msg.ApplicationProperties,
-		Body:                  msg.Body,
-		ContentType:           msg.ContentType,
-		CorrelationID:         msg.CorrelationID,
-		MessageID:             messageID,
-		PartitionKey:          msg.PartitionKey,
-		ReplyTo:               msg.ReplyTo,
-		ReplyToSessionID:      msg.ReplyToSessionID,
-		ScheduledEnqueueTime:  msg.ScheduledEnqueueTime,
-		SessionID:             msg.SessionID,
-		Subject:               msg.Subject,
-		TimeToLive:            msg.TimeToLive,
-		To:                    msg.To,
-
-		// The rest of the fields like LockToken, SequenceNumber, etc., are not present in Message
-		// and would need to be mocked or left as zero values if needed.
-	}
-}

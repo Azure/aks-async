@@ -9,10 +9,6 @@ import (
 	"github.com/Azure/aks-async/runtime/operation"
 )
 
-// Need to create an actual operation because if we use mocks the hooks will throw a nil
-// pointer error since it's using new instance created by the matcher which the mock can't
-// reference with EXPECT() calls.
-// Sample operation
 var _ operation.ApiOperation = &SampleOperation{}
 
 type SampleOperation struct {

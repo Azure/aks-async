@@ -139,7 +139,6 @@ var _ = Describe("OperationContainerHandler", func() {
 
 					operationContainerClient.EXPECT().UpdateOperationStatus(ctx, gomock.Any()).Return(nil, nil)
 
-					// returnedErr := &asyncError.AsyncError{OriginalError: errors.New("Random error")}
 					returnedErr := errors.New("Random error")
 					updateOperationStatusRequest.Status = oc.Status_FAILED
 					operationContainerClient.EXPECT().UpdateOperationStatus(ctx, updateOperationStatusRequest).Return(nil, returnedErr)
