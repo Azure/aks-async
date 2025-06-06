@@ -44,7 +44,7 @@ func (m *MockEntityController) EXPECT() *MockEntityControllerMockRecorder {
 }
 
 // GetEntity mocks base method.
-func (m *MockEntityController) GetEntity(arg0 context.Context, arg1 operation.OperationRequest) (entity.Entity, *errors.AsyncError) {
+func (m *MockEntityController) GetEntity(arg0 context.Context, arg1 *operation.OperationRequest) (entity.Entity, *errors.AsyncError) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetEntity", arg0, arg1)
 	ret0, _ := ret[0].(entity.Entity)

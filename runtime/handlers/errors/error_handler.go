@@ -28,13 +28,13 @@ func NewErrorHandler(errHandler ErrorHandlerFunc, next shuttle.HandlerFunc, mars
 			logger.Error("ErrorHandler: Handling error: " + err.Error())
 
 			switch err.OriginalError.(type) {
-			case *NonRetryError:
+			case *errors.NonRetryError:
 				logger.Info("ErrorHandler: Handling NonRetryError.")
 				actionErr := nonRetryOperationError(ctx, settler, message, marshaller)
 				if actionErr != nil {
 					logger.Error("ErrorHandler: " + actionErr.Error())
 				}
-			case *RetryError:
+			case *errors.RetryError:
 				logger.Info("ErrorHandler: Handling RetryError.")
 				actionErr := retryOperationError(ctx, settler, message, marshaller)
 				if actionErr != nil {
@@ -60,7 +60,7 @@ func NewErrorReturnHandler(errHandler ErrorHandlerFunc, next shuttle.HandlerFunc
 			logger.Error("ErrorReturnHandler: Handling error: " + err.Error())
 
 			switch err.OriginalError.(type) {
-			case *NonRetryError:
+			case *errors.NonRetryError:
 				logger.Info("ErrorReturnHandler: Handling NonRetryError.")
 				actionErr := nonRetryOperationError(ctx, settler, message, marshaller)
 				if actionErr != nil {
@@ -71,7 +71,7 @@ func NewErrorReturnHandler(errHandler ErrorHandlerFunc, next shuttle.HandlerFunc
 						ErrorCode:     500,
 					}
 				}
-			case *RetryError:
+			case *errors.RetryError:
 				logger.Info("ErrorReturnHandler: Handling RetryError.")
 				actionErr := retryOperationError(ctx, settler, message, marshaller)
 				if actionErr != nil {

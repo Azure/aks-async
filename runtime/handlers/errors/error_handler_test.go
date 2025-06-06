@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	asyncError "github.com/Azure/aks-async/runtime/errors"
+	asyncErrors "github.com/Azure/aks-async/runtime/errors"
 	"github.com/Azure/aks-async/runtime/operation"
 	sampleHandler "github.com/Azure/aks-async/runtime/testutils/handler"
 	"github.com/Azure/aks-async/runtime/testutils/settler"
@@ -79,7 +79,7 @@ var _ = Describe("ErrorHandler", func() {
 
 		Context("RetryError", func() {
 			It("should show RetryError in log", func() {
-				testErrorMessage = &RetryError{
+				testErrorMessage = &asyncErrors.RetryError{
 					Message: "RetryError",
 				}
 				handler = NewErrorHandler(SampleErrorHandler(testErrorMessage), sampleHandler.SampleHandler(), marshaller)
@@ -90,7 +90,7 @@ var _ = Describe("ErrorHandler", func() {
 			It("should handle settler error", func() {
 				failureContentType := "failure_test"
 				message.ContentType = &failureContentType
-				testErrorMessage = &RetryError{
+				testErrorMessage = &asyncErrors.RetryError{
 					Message: "RetryError",
 				}
 				handler = NewErrorHandler(SampleErrorHandler(testErrorMessage), sampleHandler.SampleHandler(), marshaller)
@@ -101,7 +101,7 @@ var _ = Describe("ErrorHandler", func() {
 		})
 		Context("NonRetryError", func() {
 			It("should show NonRetryError in log", func() {
-				testErrorMessage = &NonRetryError{
+				testErrorMessage = &asyncErrors.NonRetryError{
 					Message: "NonRetryError",
 				}
 				handler = NewErrorHandler(SampleErrorHandler(testErrorMessage), sampleHandler.SampleHandler(), marshaller)
@@ -112,7 +112,7 @@ var _ = Describe("ErrorHandler", func() {
 			It("should handle settler error", func() {
 				failureContentType := "failure_test"
 				message.ContentType = &failureContentType
-				testErrorMessage = &NonRetryError{
+				testErrorMessage = &asyncErrors.NonRetryError{
 					Message: "NonRetryError",
 				}
 				handler = NewErrorHandler(SampleErrorHandler(testErrorMessage), sampleHandler.SampleHandler(), marshaller)
@@ -143,7 +143,7 @@ var _ = Describe("ErrorHandler", func() {
 
 		Context("RetryError", func() {
 			It("should show RetryError in log", func() {
-				testErrorMessage = &RetryError{
+				testErrorMessage = &asyncErrors.RetryError{
 					Message: "RetryError",
 				}
 				errHandler = NewErrorReturnHandler(SampleErrorHandler(testErrorMessage), sampleHandler.SampleHandler(), marshaller)
@@ -155,7 +155,7 @@ var _ = Describe("ErrorHandler", func() {
 			It("should handle settler error", func() {
 				failureContentType := "failure_test"
 				message.ContentType = &failureContentType
-				testErrorMessage = &RetryError{
+				testErrorMessage = &asyncErrors.RetryError{
 					Message: "RetryError",
 				}
 				errHandler = NewErrorReturnHandler(SampleErrorHandler(testErrorMessage), sampleHandler.SampleHandler(), marshaller)
@@ -168,7 +168,7 @@ var _ = Describe("ErrorHandler", func() {
 
 		Context("NonRetryError", func() {
 			It("should show NonRetryError in log", func() {
-				testErrorMessage = &NonRetryError{
+				testErrorMessage = &asyncErrors.NonRetryError{
 					Message: "NonRetryError",
 				}
 				errHandler = NewErrorReturnHandler(SampleErrorHandler(testErrorMessage), sampleHandler.SampleHandler(), marshaller)
@@ -180,7 +180,7 @@ var _ = Describe("ErrorHandler", func() {
 			It("should handle settler error", func() {
 				failureContentType := "failure_test"
 				message.ContentType = &failureContentType
-				testErrorMessage = &NonRetryError{
+				testErrorMessage = &asyncErrors.NonRetryError{
 					Message: "NonRetryError",
 				}
 				errHandler = NewErrorReturnHandler(SampleErrorHandler(testErrorMessage), sampleHandler.SampleHandler(), marshaller)
@@ -204,9 +204,9 @@ var _ = Describe("ErrorHandler", func() {
 
 // Need to re-create this here because importing it from testutils would cause an import cycle error.
 func SampleErrorHandler(testErrorMessage error) ErrorHandlerFunc {
-	return func(ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage) *asyncError.AsyncError {
+	return func(ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage) *asyncErrors.AsyncError {
 		if testErrorMessage != nil {
-			return &asyncError.AsyncError{OriginalError: testErrorMessage}
+			return &asyncErrors.AsyncError{OriginalError: testErrorMessage}
 		}
 		return nil
 	}

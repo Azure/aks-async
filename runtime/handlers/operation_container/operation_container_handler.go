@@ -4,17 +4,17 @@ import (
 	"context"
 
 	oc "github.com/Azure/OperationContainer/api/v1"
-	asyncErrors "github.com/Azure/aks-async/runtime/errors"
-	"github.com/Azure/aks-async/runtime/handlers/errors"
+	"github.com/Azure/aks-async/runtime/errors"
+	errorHandlers "github.com/Azure/aks-async/runtime/handlers/errors"
 	"github.com/Azure/aks-async/runtime/operation"
 	"github.com/Azure/aks-middleware/grpc/server/ctxlogger"
 	"github.com/Azure/azure-sdk-for-go/sdk/messaging/azservicebus"
 	"github.com/Azure/go-shuttle/v2"
 )
 
-// Handler for when the user uses the OperationContainer
-func NewOperationContainerHandler(errHandler errors.ErrorHandlerFunc, operationContainer oc.OperationContainerClient, marshaller shuttle.Marshaller) errors.ErrorHandlerFunc {
-	return func(ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage) *asyncErrors.AsyncError {
+// Handler for when the user uses the OperationContainer.
+func NewOperationContainerHandler(errHandler errorHandlers.ErrorHandlerFunc, operationContainer oc.OperationContainerClient, marshaller shuttle.Marshaller) errorHandlers.ErrorHandlerFunc {
+	return func(ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage) *errors.AsyncError {
 		logger := ctxlogger.GetLogger(ctx)
 
 		var body operation.OperationRequest
@@ -32,7 +32,7 @@ func NewOperationContainerHandler(errHandler errors.ErrorHandlerFunc, operationC
 		if err != nil {
 			errorMessage := "OperationContainerHandler: Error setting operation in progress: " + err.Error()
 			logger.Error(errorMessage)
-			return &asyncErrors.AsyncError{
+			return &errors.AsyncError{
 				OriginalError: err,
 				Message:       errorMessage,
 				ErrorCode:     500,
@@ -54,7 +54,7 @@ func NewOperationContainerHandler(errHandler errors.ErrorHandlerFunc, operationC
 				if err != nil {
 					errorMessage := "OperationContainerHandler: Something went wrong setting the operation as Failed" + err.Error()
 					logger.Error(errorMessage)
-					return &asyncErrors.AsyncError{
+					return &errors.AsyncError{
 						OriginalError: asyncErr,
 						Message:       errorMessage,
 						ErrorCode:     500,
@@ -71,7 +71,7 @@ func NewOperationContainerHandler(errHandler errors.ErrorHandlerFunc, operationC
 				if err != nil {
 					errorMessage := "OperationContainerHandler: Something went wrong setting the operation as Pending:" + err.Error()
 					logger.Error(errorMessage)
-					return &asyncErrors.AsyncError{
+					return &errors.AsyncError{
 						OriginalError: asyncErr,
 						Message:       errorMessage,
 						ErrorCode:     500,
@@ -80,7 +80,7 @@ func NewOperationContainerHandler(errHandler errors.ErrorHandlerFunc, operationC
 			default:
 				errorMessage := "OperationContainerHandler: Error type not recognized. Operation status not changed."
 				logger.Info(errorMessage)
-				return &asyncErrors.AsyncError{
+				return &errors.AsyncError{
 					OriginalError: asyncErr,
 					Message:       errorMessage,
 					ErrorCode:     500,
@@ -97,7 +97,7 @@ func NewOperationContainerHandler(errHandler errors.ErrorHandlerFunc, operationC
 			if updateErr != nil {
 				errorMessage := "OperationContainerHandler: Something went wrong setting the operation as Completed:" + updateErr.Error()
 				logger.Info(errorMessage)
-				return &asyncErrors.AsyncError{
+				return &errors.AsyncError{
 					OriginalError: updateErr,
 					Message:       errorMessage,
 					ErrorCode:     500,

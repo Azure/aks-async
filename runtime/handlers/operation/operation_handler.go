@@ -10,15 +10,15 @@ import (
 
 	"github.com/Azure/aks-async/runtime/entity"
 	ec "github.com/Azure/aks-async/runtime/entity_controller"
-	asyncErrors "github.com/Azure/aks-async/runtime/errors"
-	"github.com/Azure/aks-async/runtime/handlers/errors"
+	"github.com/Azure/aks-async/runtime/errors"
+	errorHandlers "github.com/Azure/aks-async/runtime/handlers/errors"
 	"github.com/Azure/aks-async/runtime/hooks"
 	"github.com/Azure/aks-async/runtime/matcher"
 	"github.com/Azure/aks-async/runtime/operation"
 )
 
-func NewOperationHandler(matcher *matcher.Matcher, hooks []hooks.BaseOperationHooksInterface, entityController ec.EntityController, marshaller shuttle.Marshaller) errors.ErrorHandlerFunc {
-	return func(ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage) *asyncErrors.AsyncError {
+func NewOperationHandler(matcher *matcher.Matcher, hooks []hooks.BaseOperationHooksInterface, entityController ec.EntityController, marshaller shuttle.Marshaller) errorHandlers.ErrorHandlerFunc {
+	return func(ctx context.Context, settler shuttle.MessageSettler, message *azservicebus.ReceivedMessage) *errors.AsyncError {
 		logger := ctxlogger.GetLogger(ctx)
 
 		// 1. Unmarshall the operation
@@ -27,7 +27,7 @@ func NewOperationHandler(matcher *matcher.Matcher, hooks []hooks.BaseOperationHo
 		if err != nil {
 			errorMessage := "Error unmarshalling message: " + err.Error()
 			logger.Error(errorMessage)
-			return &asyncErrors.AsyncError{
+			return &errors.AsyncError{
 				OriginalError: &errors.NonRetryError{Message: "Error unmarshalling message."},
 				Message:       errorMessage,
 				ErrorCode:     500,
@@ -40,7 +40,7 @@ func NewOperationHandler(matcher *matcher.Matcher, hooks []hooks.BaseOperationHo
 		if err != nil {
 			errorMessage := "Operation type doesn't exist in the matcher: " + err.Error()
 			logger.Error(errorMessage)
-			return &asyncErrors.AsyncError{
+			return &errors.AsyncError{
 				OriginalError: &errors.NonRetryError{Message: "Error creating operation instance."},
 				Message:       errorMessage,
 				ErrorCode:     500,
@@ -58,7 +58,7 @@ func NewOperationHandler(matcher *matcher.Matcher, hooks []hooks.BaseOperationHo
 		//TODO(mheberling): Remove this after usage is adopted in Guardrails
 		var e entity.Entity
 		if entityController != nil {
-			e, asyncErr = entityController.GetEntity(ctx, body)
+			e, asyncErr = entityController.GetEntity(ctx, &body)
 			if asyncErr != nil {
 				logger.Error("Something went wrong getting the entity.")
 				return asyncErr
@@ -83,7 +83,7 @@ func NewOperationHandler(matcher *matcher.Matcher, hooks []hooks.BaseOperationHo
 		err = settleMessage(ctx, settler, message, nil)
 		if err != nil {
 			logger.Error("Settling message: " + err.Error())
-			return &asyncErrors.AsyncError{
+			return &errors.AsyncError{
 				OriginalError: err,
 				Message:       err.Error(),
 				ErrorCode:     500,

@@ -9,6 +9,7 @@ import (
 
 	oc "github.com/Azure/OperationContainer/api/v1"
 	ocMock "github.com/Azure/OperationContainer/api/v1/mock"
+	asyncErrors "github.com/Azure/aks-async/runtime/errors"
 	handlerErrors "github.com/Azure/aks-async/runtime/handlers/errors"
 	"github.com/Azure/aks-async/runtime/operation"
 	sampleErrorHandler "github.com/Azure/aks-async/runtime/testutils/error_handler"
@@ -116,7 +117,7 @@ var _ = Describe("OperationContainerHandler", func() {
 		Context("Errors", func() {
 			Context("NonRetryError", func() {
 				It("should handle a NonRetryError", func() {
-					nonRetryError := &handlerErrors.NonRetryError{
+					nonRetryError := &asyncErrors.NonRetryError{
 						Message: "NonRetryError!",
 					}
 					operationContainerHandler = NewOperationContainerHandler(sampleErrorHandler.SampleErrorHandler(nonRetryError), operationContainerClient, marshaller)
@@ -131,7 +132,7 @@ var _ = Describe("OperationContainerHandler", func() {
 				})
 
 				It("should handle client error while handling a NonRetryError", func() {
-					nonRetryError := &handlerErrors.NonRetryError{
+					nonRetryError := &asyncErrors.NonRetryError{
 						Message: "NonRetryError!",
 					}
 					operationContainerHandler = NewOperationContainerHandler(sampleErrorHandler.SampleErrorHandler(nonRetryError), operationContainerClient, marshaller)
@@ -150,7 +151,7 @@ var _ = Describe("OperationContainerHandler", func() {
 
 			Context("RetryError", func() {
 				It("should handle a RetryError", func() {
-					retryError := &handlerErrors.RetryError{
+					retryError := &asyncErrors.RetryError{
 						Message: "RetryError!",
 					}
 					operationContainerHandler = NewOperationContainerHandler(sampleErrorHandler.SampleErrorHandler(retryError), operationContainerClient, marshaller)
@@ -165,7 +166,7 @@ var _ = Describe("OperationContainerHandler", func() {
 				})
 
 				It("should handle client error while handling a RetryError", func() {
-					retryError := &handlerErrors.RetryError{
+					retryError := &asyncErrors.RetryError{
 						Message: "RetryError!",
 					}
 					operationContainerHandler = NewOperationContainerHandler(sampleErrorHandler.SampleErrorHandler(retryError), operationContainerClient, marshaller)

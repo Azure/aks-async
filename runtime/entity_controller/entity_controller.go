@@ -13,5 +13,5 @@ import (
 // but also force them to grab the entity from somewhere, thus avoiding them always returning a nil error
 // from GuardConcurrency method.
 type EntityController interface {
-	GetEntity(context.Context, operation.OperationRequest) (entity.Entity, *errors.AsyncError)
+	GetEntity(context.Context, *operation.OperationRequest) (entity.Entity, *errors.AsyncError)
 }
