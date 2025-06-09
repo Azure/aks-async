@@ -50,7 +50,7 @@ sro := &ShortRunningOperation{}
 matcher.Register(lro.GetName(ctx), lro)
 matcher.Register(sro.GetName(ctx), sro)
 
-processor, err := processor.CreateProcessor(receiver, matcher, operationContainerClient, entityController, logger, handler, nil, hooks)
+processor, err := processor.CreateProcessor(receiver, matcher, operationContainerClient, entityController, logger, handler, nil, hooks, nil)
 
 // Start processing the operations.
 err = asyncStruct.Processor.Start(ctx)
@@ -68,11 +68,11 @@ Here's a quick example:
 var _ operation.ApiOperation = &SampleOperation{}
 
 type SampleOperation struct {
-	opReq operation.OperationRequest
+	opReq *operation.OperationRequest
 	Num   int
 }
 
-func (l *SampleOperation) InitOperation(ctx context.Context, opReq operation.OperationRequest) (operation.ApiOperation, *errors.AsyncError) {
+func (l *SampleOperation) InitOperation(ctx context.Context, opReq *operation.OperationRequest) (operation.ApiOperation, *errors.AsyncError) {
 	if opReq.OperationId == "1" {
 		return nil, errors.New("No OperationId")
 	}
@@ -83,15 +83,15 @@ func (l *SampleOperation) InitOperation(ctx context.Context, opReq operation.Ope
 
 func (l *SampleOperation) GuardConcurrency(ctx context.Context, entityInstance entity.Entity) *errors.AsyncError {
 	if l.opReq.OperationId == "2" {
-		ce := &entity.CategorizedError{Err: errors.New("Incorrect OperationId")}
-		return ce
+		aerr := &error.sAsyncError{OriginalError: errors.New("Incorrect OperationId")}
+		return aerr
 	}
 	return nil
 }
 
-func (l *SampleOperation) Run(ctx context.Context) error {
+func (l *SampleOperation) Run(ctx context.Context) *errors.AsyncError {
 	if l.opReq.OperationId == "3" {
-		return errors.New("Incorrect OperationId")
+        return &errors.AsyncError{OriginalError: errors.New("Incorrect OperationId")}
 	}
 	return nil
 }
@@ -116,34 +116,7 @@ func NewTestEntity(latestOperationId string) *TestEntity {
 }
 ```
 
-Additionally, if there are fields that you need to Init your operation, but they don't currently exist in the OperationRequest, you can use the `Extension` variable to add any interface you need together with the `SetExtension(interface{})` method in order to use that interface as a more concrete type and directly change the OperationRequest.Extension variable, so you can continue using the same instance.
-```go
-type Sample struct {
-	Message string
-	Num     int
-}
-
-var body OperationRequest
-err := json.Unmarshal(marshalledOperation, &body)
-if err != nil {
-    t.Fatalf("Could not unmarshall operation request:" + err.Error())
-}
-
-// SetExtension(interface{}) uses the type of a parameter that is passed in to instantiate the Extension into the correct type you need.
-s := &Sample{}
-err = body.SetExtension(s)
-if err != nil {
-    t.Fatalf("SetExtension errored: " + err.Error())
-}
-
-// Check if the type and value are correctly set
-if ext, ok := body.Extension.(*Sample); ok {
-    fmt.Println(ext.Message)
-    fmt.Println(ext.Num)
-} else {
-    fmt.Println("Extension is not of type *Sample")
-}
-```
+Additionally, if there are fields that you need to Init your operation, but they don't currently exist in the OperationRequest, you can use the `Extension` variable to add any interface you need.
 
 ### Service Bus
 
