@@ -112,7 +112,7 @@ func (mr *MockSenderInterfaceMockRecorder) GetAzureSender() *gomock.Call {
 }
 
 // SendMessage mocks base method.
-func (m *MockSenderInterface) SendMessage(ctx context.Context, message []byte) error {
+func (m *MockSenderInterface) SendMessage(ctx context.Context, message *azservicebus.Message) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SendMessage", ctx, message)
 	ret0, _ := ret[0].(error)
@@ -165,16 +165,16 @@ func (mr *MockReceiverInterfaceMockRecorder) GetAzureReceiver() *gomock.Call {
 }
 
 // ReceiveMessage mocks base method.
-func (m *MockReceiverInterface) ReceiveMessage(ctx context.Context) ([]byte, error) {
+func (m *MockReceiverInterface) ReceiveMessage(ctx context.Context, maxMessages int, options *azservicebus.ReceiveMessagesOptions) ([]*azservicebus.ReceivedMessage, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ReceiveMessage", ctx)
-	ret0, _ := ret[0].([]byte)
+	ret := m.ctrl.Call(m, "ReceiveMessage", ctx, maxMessages, options)
+	ret0, _ := ret[0].([]*azservicebus.ReceivedMessage)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // ReceiveMessage indicates an expected call of ReceiveMessage.
-func (mr *MockReceiverInterfaceMockRecorder) ReceiveMessage(ctx any) *gomock.Call {
+func (mr *MockReceiverInterfaceMockRecorder) ReceiveMessage(ctx, maxMessages, options any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReceiveMessage", reflect.TypeOf((*MockReceiverInterface)(nil).ReceiveMessage), ctx)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReceiveMessage", reflect.TypeOf((*MockReceiverInterface)(nil).ReceiveMessage), ctx, maxMessages, options)
 }

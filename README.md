@@ -50,7 +50,7 @@ sro := &ShortRunningOperation{}
 matcher.Register(lro.GetName(ctx), lro)
 matcher.Register(sro.GetName(ctx), sro)
 
-processor, err := operationsbus.CreateProcessor(serviceBusSender, serviceBusReceiver, matcher, operationContainer)
+processor, err := processor.CreateProcessor(receiver, matcher, operationContainerClient, entityController, logger, handler, nil, hooks, nil)
 
 // Start processing the operations.
 err = asyncStruct.Processor.Start(ctx)
@@ -64,108 +64,59 @@ In order to create a new operation type, you will simply need to create a struct
 
 Here's a quick example: 
 ```go
+// Example implementation of ApiOperation
+var _ operation.ApiOperation = &SampleOperation{}
 
-// LongrunningOperation.go
-var _ opbus.ApiOperation = &LongRunningOperation{}
-
-type LongRunningOperation struct {
-	Name           string
-	Operation      opbus.OperationRequest
-	LroEntity      *LongRunningEntity
-	OperationId    string
-	EntityId       string
-	EntityType     string
-	Retries        int
-	ExpirationDate *timestamppb.Timestamp
+type SampleOperation struct {
+	opReq *operation.OperationRequest
+	Num   int
 }
 
-func (lro *LongRunningOperation) Init(ctx context.Context, opRequest opbus.OperationRequest) (opbus.APIOperation, *opbus.AsyncError) {
-	lro.Operation = opRequest
-	lro.Name = opRequest.OperationName
-	lro.OperationId = opRequest.OperationId
-	lro.EntityType = opRequest.EntityType
-	lro.EntityId = opRequest.EntityId
-	lro.Retries = opRequest.RetryCount
+func (l *SampleOperation) InitOperation(ctx context.Context, opReq *operation.OperationRequest) (operation.ApiOperation, *errors.AsyncError) {
+	if opReq.OperationId == "1" {
+		return nil, errors.New("No OperationId")
+	}
+	l.opReq = opReq
+	l.Num = 1
 	return nil, nil
 }
 
-func (lro *LongRunningOperation) Run(ctx context.Context) *opbus.AsyncError {
-	logger := ctxlogger.GetLogger(ctx)
-	logger.Info("Running the long running operation!")
-
-	// Logic for running the operation
-	time.Sleep(20 * time.Second)
-	logger.Info("Finished running the long running operation.")
-
+func (l *SampleOperation) GuardConcurrency(ctx context.Context, entityInstance entity.Entity) *errors.AsyncError {
+	if l.opReq.OperationId == "2" {
+		aerr := &error.sAsyncError{OriginalError: errors.New("Incorrect OperationId")}
+		return aerr
+	}
 	return nil
 }
 
-func (lro *LongRunningOperation) Guardconcurrency(ctx context.Context, entity opbus.Entity) (*opbus.AsyncError) {
-	logger := ctxlogger.GetLogger(ctx)
-	logger.Info("Guarding concurrency for operation.")
-
-	// We will simply return true for now because we're not guarding against anything, but another user might need to.
-	if entity.GetLatestOperationID() == lro.OperationId {
-		return nil, nil
-	} else {
-        return nil, &opbus.AsyncError{Message: "Wrong operationId."}
+func (l *SampleOperation) Run(ctx context.Context) *errors.AsyncError {
+	if l.opReq.OperationId == "3" {
+        return &errors.AsyncError{OriginalError: errors.New("Incorrect OperationId")}
 	}
+	return nil
 }
 
-func (lro *LongRunningOperation) GetName(ctx context.Context) string {
-	return "LongRunningOperation"
+func (l *SampleOperation) GetOperationRequest() *operation.OperationRequest {
+	return &l.opReq
 }
 
-func (lro *LongRunningOperation) GetOperationRequest(context.Context) *opbus.OperationRequest {
-	return &lro.Operation
+// Example implementatin of Entity
+type TestEntity struct {
+	latestOperationId string
 }
 
-// LongRunningEntity.go
-var _ opbus.Entity = &LongRunningEntity{}
-
-type LongRunningEntity struct {
-	LastOperationId string
+func (e *TestEntity) GetLatestOperationID() string {
+	return e.latestOperationId
 }
 
-func NewLongRunningEntity(lastOperationId string) *LongRunningEntity {
-	return &LongRunningEntity{
-		LastOperationId: lastOperationId,
+func NewTestEntity(latestOperationId string) *TestEntity {
+	return &TestEntity{
+		latestOperationId: latestOperationId,
 	}
-}
-
-func (lre *LongRunningEntity) GetLatestOperationID() string {
-	return lre.LastOperationId
 }
 ```
 
-Additionally, if there are fields that you need to Init your operation, but they don't currently exist in the OperationRequest, you can use the `Extension` variable to add any interface you need together with the `SetExtension(interface{})` method in order to use that interface as a more concrete type and directly change the OperationRequest.Extension variable, so you can continue using the same instance.
-```go
-type Sample struct {
-	Message string
-	Num     int
-}
-
-var body OperationRequest
-err := json.Unmarshal(marshalledOperation, &body)
-if err != nil {
-    t.Fatalf("Could not unmarshall operation request:" + err.Error())
-}
-
-// SetExtension(interface{}) uses the type of a parameter that is passed in to instantiate the Extension into the correct type you need.
-s := &Sample{}
-err = body.SetExtension(s)
-if err != nil {
-    t.Fatalf("SetExtension errored: " + err.Error())
-}
-
-// Check if the type and value are correctly set
-if ext, ok := body.Extension.(*Sample); ok {
-    fmt.Println(ext.Message)
-    fmt.Println(ext.Num)
-} else {
-    fmt.Println("Extension is not of type *Sample")
-}
-```
+Additionally, if there are fields that you need to Init your operation, but they don't currently exist in the OperationRequest, you can use the `Extension` variable to add any interface you need.
 
 ### Service Bus
 
@@ -192,4 +143,13 @@ err = sender.SendMessage(ctx, marshalledOperation)
 if err != nil {
     fmt.Println("Something happened: " + err.Error())
 }
+```
+
+## Util
+
+### Mock
+
+Run the following to create mocks of an interface, with a sample of the service bus interface:
+```bash
+mockgen -source=servicebus/servicebus_interface.go -destination=mocks/mock_service_bus.go -package=mocks
 ```
