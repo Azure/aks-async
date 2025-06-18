@@ -4,7 +4,7 @@
 // 	protoc        v3.12.4
 // source: operation_request.proto
 
-package operationsbus
+package operation
 
 import (
 	any1 "github.com/golang/protobuf/ptypes/any"
